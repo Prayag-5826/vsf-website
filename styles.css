@@ -880,3 +880,70 @@ label{
   }
   .brand-logo{ height: 40px; }
 }
+/* ===== Mobile Menu Fix (Clean dropdown, not full overlay) ===== */
+.site-header{
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+@media (max-width: 900px){
+
+  /* Header layout */
+  .header-inner{
+    position: relative;
+  }
+
+  /* Hide menu by default */
+  .nav-menu{
+    display: none;
+  }
+
+  /* Show menu when open */
+  .nav-menu.open{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    left: 0;
+
+    padding: 12px;
+    border-radius: 16px;
+
+    background: #ffffff;
+    border: 1px solid rgba(17,24,39,.12);
+    box-shadow: 0 18px 40px rgba(17,24,39,.14);
+  }
+
+  /* Make links full width */
+  .nav-menu.open li a{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px;
+    border-radius: 14px;
+    background: #fffaf0;
+    border: 1px solid rgba(17,24,39,.10);
+    color: #111827;
+  }
+
+  .nav-menu.open li a:hover{
+    background: #fff3c4;
+    border-color: rgba(180,83,9,.20);
+  }
+
+  /* Hamburger on top */
+  .hamburger{
+    position: relative;
+    z-index: 1000;
+  }
+
+  /* Add spacing so hero doesn't sit under menu */
+  .hero{
+    padding-top: 18px;
+  }
+}
