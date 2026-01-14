@@ -947,3 +947,84 @@ label{
     padding-top: 18px;
   }
 }
+/* ===== FIX: Service Details text should be dark on light theme ===== */
+.service-box,
+.service-box *{
+  color: var(--text) !important;
+}
+
+.service-list{
+  color: var(--text) !important;
+}
+
+.service-list li{
+  color: var(--text) !important;
+}
+
+.service-note{
+  color: var(--muted) !important;
+}
+
+/* If any paragraphs inside service-box */
+.service-box p,
+.service-box small{
+  color: var(--muted) !important;
+}
+.service-list i{
+  color: var(--brand2) !important;
+}
+/* ===== FIX: About page "Our Commitment" text color ===== */
+.commitment-card,
+.commitment-card *{
+  color: var(--text) !important;
+}
+
+.commitment-card p,
+.commitment-card .muted,
+.commitment-card small,
+.commitment-card li{
+  color: var(--muted) !important;
+}
+
+/* Headings inside commitment card */
+.commitment-card h3,
+.commitment-card h4{
+  color: var(--text) !important;
+}
+/* If "Our Commitment" uses hero-card styling */
+.hero-card.commitment,
+.hero-card.commitment *{
+  color: var(--text) !important;
+}
+.hero-card.commitment p,
+.hero-card.commitment li{
+  color: var(--muted) !important;
+}
+/* ===== About: Our Commitment (remove inline styles + match light theme) ===== */
+.commitment-points{
+  display: grid;
+  gap: 12px;
+}
+
+.commitment-item{
+  padding: 12px;
+  border: 1px solid rgba(17,24,39,.12);
+  border-radius: 14px;
+  background: #fffaf0;
+}
+
+.commitment-item strong{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.commitment-item i{
+  color: var(--brand2);
+}
+
+.commitment-desc{
+  margin-top: 6px;
+  color: var(--muted);
+}
