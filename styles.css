@@ -851,3 +851,32 @@ label{
   border: 1px solid rgba(17,24,39,.12) !important;
   box-shadow: 0 14px 34px rgba(17,24,39,.14) !important;
 }
+/* Brand logo + company name */
+.brand{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brand-logo{
+  height: 44px;   /* controls header height */
+  width: auto;
+  display: block;
+}
+
+.brand-title{
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px){
+  .brand-title{
+    font-size: .95rem;
+    white-space: normal; /* allow wrap on small screens */
+  }
+  .brand-logo{ height: 40px; }
+}
