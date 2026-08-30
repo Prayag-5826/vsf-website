@@ -469,6 +469,13 @@ const cityDirectory: Record<string, CityData> = {
   }
 };
 
+// 1. Static Generation for Programmatic SEO across all defined cities
+export async function generateStaticParams() {
+  return Object.keys(cityDirectory).map((city) => ({
+    city,
+  }));
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ city: string }> }): Promise<Metadata> {
   const { city } = await params;
   const cityKey = city.toLowerCase();
@@ -477,7 +484,7 @@ export async function generateMetadata({ params }: { params: Promise<{ city: str
   if (!data) {
     return {
       title: 'City Deployment Directory | Vidhya Security Force Madhya Pradesh',
-      description: 'PSARA licensed security guard and housekeeping deployments across all 55 districts of Madhya Pradesh.',
+      description: 'PSARA licensed security guard and housekeeping deployments across Madhya Pradesh[cite: 5].',
     };
   }
 
@@ -542,7 +549,7 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-[#0F172A] font-sans antialiased selection:bg-red-700 selection:text-white">
-      {/* Schema.org Injection for Rich Snippets */}
+      {/* Schema.org Injection for Google Rich Snippets */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

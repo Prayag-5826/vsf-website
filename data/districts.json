@@ -1,0 +1,122 @@
+[
+  {
+    "slug": "indore",
+    "name": "Indore",
+    "region": "Malwa",
+    "pin": "452001",
+    "industrialHubs": ["Sanwer Road Industrial Area", "Pardesipura", "Laxmibai Nagar", "Palda Industrial Area", "Super Corridor"],
+    "keySectors": ["IT & Tech Parks", "Commercial Hubs", "Textile & Manufacturing", "Educational Campuses"]
+  },
+  {
+    "slug": "pithampur",
+    "name": "Pithampur",
+    "region": "Dhar / Indore Outskirts",
+    "pin": "454775",
+    "industrialHubs": ["Pithampur SEZ Sector 1", "Sector 2", "Sector 3", "Smart Industrial Park (SIP)"],
+    "keySectors": ["Automobile Assembly", "Pharma Formulations", "Heavy Logistics Yards", "Packaging Units"]
+  },
+  {
+    "slug": "bhopal",
+    "name": "Bhopal",
+    "region": "Bhopal Division",
+    "pin": "462001",
+    "industrialHubs": ["Govindpura Industrial Area", "Mandideep Industrial Area", "Bagh Sewaniya", "MP Nagar"],
+    "keySectors": ["Heavy Electricals", "Government & Corporate Offices", "Manufacturing Hubs", "Institutional Campuses"]
+  },
+  {
+    "slug": "dewas",
+    "name": "Dewas",
+    "region": "Malwa",
+    "pin": "455001",
+    "industrialHubs": ["Dewas Industrial Area Phase 1", "Phase 2", "BNP Road Industrial Cluster"],
+    "keySectors": ["Chemical & Polymer Plants", "Textile Mills", "Steel & Engineering Works"]
+  },
+  {
+    "slug": "ujjain",
+    "name": "Ujjain",
+    "region": "Malwa",
+    "pin": "456001",
+    "industrialHubs": ["Nagziri Industrial Area", "Maksi Road Industrial Belt"],
+    "keySectors": ["Hospitality & Hotel Chains", "Religious Tourism Crowd Marshals", "Commercial Real Estate"]
+  },
+  {
+    "slug": "gwalior",
+    "name": "Gwalior",
+    "region": "Gird",
+    "pin": "474001",
+    "industrialHubs": ["Malanpur Industrial Area", "Maharajpura Industrial Area"],
+    "keySectors": ["Defense & Engineering Units", "Commercial Retail", "Educational Campuses"]
+  },
+  {
+    "slug": "jabalpur",
+    "name": "Jabalpur",
+    "region": "Mahakoshal",
+    "pin": "482001",
+    "industrialHubs": ["Richhai Industrial Area", "Adhartal Industrial Estate"],
+    "keySectors": ["Defense Production Ancillaries", "Mineral & Stone Processing", "Logistics Warehouses"]
+  },
+  {
+    "slug": "ratlam",
+    "name": "Ratlam",
+    "region": "Malwa",
+    "pin": "457001",
+    "industrialHubs": ["Industrial Area Namkeen Cluster", "Jaora Road Logistics Yard"],
+    "keySectors": ["Food Processing", "Rail Freight & Transshipment Yards", "Commercial Establishments"]
+  },
+  {
+    "slug": "satna",
+    "name": "Satna",
+    "region": "Baghelkhand",
+    "pin": "485001",
+    "industrialHubs": ["Maihar Cement Corridor", "Industrial Estate Satna"],
+    "keySectors": ["Cement Manufacturing Plants", "Mining Yards", "Heavy Transport Depots"]
+  },
+  {
+    "slug": "sagar",
+    "name": "Sagar",
+    "region": "Bundelkhand",
+    "pin": "470001",
+    "industrialHubs": ["Sidhgawan Industrial Area", "Bina Refinery Outskirts"],
+    "keySectors": ["Petrochemical Ancillaries", "Commercial Outlets", "Institutional Security"]
+  },
+  {
+    "slug": "rewa",
+    "name": "Rewa",
+    "region": "Vindhya",
+    "pin": "486001",
+    "industrialHubs": ["Guda Industrial Area", "Rewa Ultra Mega Solar Park"],
+    "keySectors": ["Solar Power Parks", "Cement Logistics", "Healthcare & Hospitals"]
+  },
+  {
+    "slug": "khandwa",
+    "name": "Khandwa",
+    "region": "Nimar",
+    "pin": "450001",
+    "industrialHubs": ["Nimarkhedi Industrial Corridor", "Thermal Power Belt"],
+    "keySectors": ["Power Generation Units", "Cotton Ginning & Agro Mills", "Commercial Warehouses"]
+  },
+  {
+    "slug": "singrauli",
+    "name": "Singrauli",
+    "region": "Baghelkhand",
+    "pin": "486889",
+    "industrialHubs": ["Waidhan Industrial Area", "NTPC & Northern Coalfields Corridor"],
+    "keySectors": ["Coal Mining & Thermal Plants", "Heavy Equipment Depots", "Perimeter Defense"]
+  },
+  {
+    "slug": "neemuch",
+    "name": "Neemuch",
+    "region": "Malwa",
+    "pin": "458441",
+    "industrialHubs": ["Neemuch Industrial Estate", "Jawan Industrial Zone"],
+    "keySectors": ["Agro-Processing", "Commercial Warehousing", "Static Guarding"]
+  },
+  {
+    "slug": "katni",
+    "name": "Katni",
+    "region": "Mahakoshal",
+    "pin": "483501",
+    "industrialHubs": ["Jhajhariya Industrial Area", "Barhi Mineral Corridor"],
+    "keySectors": ["Mineral & Bauxite Yards", "Railway Junction Logistics", "Factory Gates"]
+  }
+]
