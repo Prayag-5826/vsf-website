@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // If Supabase env vars are missing, let the request proceed to avoid hard 500 crashes
+  // Gracefully allow requests through if Supabase keys are not configured
   if (!supabaseUrl || !supabaseAnonKey) {
     return supabaseResponse;
   }
@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
       },
     });
 
+    // Refresh auth session
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -45,22 +46,22 @@ export async function middleware(request: NextRequest) {
     const isAccessingAdmin = request.nextUrl.pathname.startsWith('/admin');
     const isLoginPage = request.nextUrl.pathname === '/login';
 
-    // Protect /admin routes: redirect unauthenticated users to /login
+    // 1. Unauthenticated users trying to access /admin -> Redirect to /login
     if (isAccessingAdmin && !user) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/login';
+      return NextResponse.redirect(redirectUrl);
     }
 
-    // Redirect authenticated users away from /login directly to /admin
+    // 2. Authenticated users visiting /login -> Redirect to /admin
     if (isLoginPage && user) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/admin';
-      return NextResponse.redirect(url);
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/admin';
+      return NextResponse.redirect(redirectUrl);
     }
   } catch (error) {
-    // If auth resolution throws an error, allow the request rather than crashing the site
-    console.error('Middleware Auth Error:', error);
+    // Avoid unhandled 500 crashes if edge network resolution drops
+    console.error('Middleware Auth Execution Error:', error);
     return supabaseResponse;
   }
 
@@ -69,8 +70,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   /*
-   * Run middleware ONLY for admin routes and login.
-   * All public marketing, city, and service pages bypass the Edge auth check entirely.
+   * Limit execution strictly to protected routes and authentication paths.
+   * Static assets, public marketing pages, and city directories bypass this completely.
    */
   matcher: ['/admin/:path*', '/login'],
 };
