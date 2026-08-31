@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Montserrat, Open_Sans, Tiro_Devanagari_Hindi } from 'next/font/google';
-import './globals.css';
+import '../globals.css';
 const montserrat = Montserrat({
   subsets: ['latin'],
   variable: '--font-montserrat',
