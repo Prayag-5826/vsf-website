@@ -36,13 +36,27 @@ interface CityData {
   complianceSpecs: { label: string; value: string }[];
 }
 
-const cityDirectory: Record<string, CityData> = {
+// Complete Master List of All 55 Madhya Pradesh Districts
+export const allMpDistrictsList = [
+  'Agar Malwa', 'Alirajpur', 'Anuppur', 'Ashoknagar', 'Balaghat', 'Barwani', 'Betul', 'Bhind', 'Bhopal', 'Burhanpur',
+  'Chhatarpur', 'Chhindwara', 'Damoh', 'Datia', 'Dewas', 'Dhar', 'Dindori', 'Guna', 'Gwalior', 'Harda',
+  'Hoshangabad', 'Indore', 'Jabalpur', 'Jhabua', 'Katni', 'Khandwa', 'Khargone', 'Mandla', 'Mandsaur', 'Morena',
+  'Narsinghpur', 'Neemuch', 'Niwari', 'Panna', 'Raisen', 'Rajgarh', 'Ratlam', 'Rewa', 'Sagar', 'Satna',
+  'Sehore', 'Seoni', 'Shahdol', 'Shajapur', 'Sheopur', 'Shivpuri', 'Sidhi', 'Singrauli', 'Tikamgarh', 'Ujjain',
+  'Umaria', 'Vidisha', 'Mauganj', 'Pandhurna', 'Maihar'
+];
+
+// Helper to sanitize slugs (e.g., 'Agar Malwa' -> 'agar-malwa')
+export const formatSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+// Deep Localized Profiles for Primary Commercial Hubs
+const primaryDistrictDirectory: Record<string, CityData> = {
   indore: {
     name: 'Indore',
     tagline: 'Central Operations Command & Rapid Mobilization Hub',
     division: 'Malwa Division',
     pinCodes: '452001 - 452020',
-    phone: '+91 98262 59292',
+    phone: '+91 98262 59020',
     description: 'Vidhya Security Force provides PSARA-licensed security guards, armed bank sentries, event bouncers, and mechanized corporate housekeeping across commercial towers, tech parks, shopping complexes, and industrial belts throughout Indore.',
     responseUnit: 'Dedicated 24/7 Mobile QRT & Supervisory Patrol',
     turnaroundTime: 'Immediate Survey (Within 2 Hours)',
@@ -79,7 +93,7 @@ const cityDirectory: Record<string, CityData> = {
     tagline: 'Special Economic Zone (SEZ) & Automobile Industrial Gateway',
     division: 'Dhar / Indore Industrial Corridor',
     pinCodes: '454774 / 454775',
-    phone: '+91 98262 59292',
+    phone: '+91 98262 59020',
     description: 'Specialized industrial gatekeepers, material delivery challan controllers, cargo truck seal inspectors, and 5S factory housekeeping squads stationed across manufacturing plants and pharma cleanrooms in Pithampur SEZ.',
     responseUnit: 'Pithampur Industrial Night Patrol Squad',
     turnaroundTime: 'Guaranteed 24-Hour Mobilization',
@@ -116,7 +130,7 @@ const cityDirectory: Record<string, CityData> = {
     tagline: 'Capital Division & Institutional Facility Network',
     division: 'Bhopal Division',
     pinCodes: '462001 - 462044',
-    phone: '+91 98262 59292',
+    phone: '+91 98262 59020',
     description: 'Enterprise guarding details, corporate facility housekeeping teams, and armed security marshals serving government administrative towers, corporate headquarters, hospitals, and industrial corridors across Bhopal and Mandideep.',
     responseUnit: 'Bhopal Regional Assistant Field Office',
     turnaroundTime: 'On-Site Survey Within 4 Hours',
@@ -153,7 +167,7 @@ const cityDirectory: Record<string, CityData> = {
     tagline: 'Chemical, Textile & Processing Plant Security Hub',
     division: 'Ujjain Division',
     pinCodes: '455001',
-    phone: '+91 98262 59292',
+    phone: '+91 98262 59020',
     description: 'Full statutory compliance, police-verified sentry units, raw material loss prevention officers, and industrial scrubber operators serving heavy manufacturing plants, textile mills, and chemical facilities across Dewas.',
     responseUnit: 'Dewas Quick Response Patrol Unit',
     turnaroundTime: 'Deployment Ready in 24 Hours',
@@ -189,8 +203,8 @@ const cityDirectory: Record<string, CityData> = {
     tagline: 'Hospitality, Event Crowd Control & Commercial Sentry Wing',
     division: 'Ujjain Division',
     pinCodes: '456001 - 456010',
-    phone: '+91 98262 59292',
-    description: 'Event crowd control marshals, tall executive bouncers, commercial complex sentries, and daily janitorial personnel deployed across temples, hotels, resorts, commercial banks, and industrial corridors in Ujjain.',
+    phone: '+91 98262 59020',
+    description: 'Event crowd control marshals, executive bouncers, commercial complex sentries, and daily janitorial personnel deployed across temples, hotels, resorts, commercial banks, and industrial corridors in Ujjain.',
     responseUnit: 'Ujjain Event & Emergency Escalation Team',
     turnaroundTime: 'On-Site Team Assessment in 3 Hours',
     districts: [
@@ -203,7 +217,7 @@ const cityDirectory: Record<string, CityData> = {
     sectors: [
       'Hotels, Resorts & Hospitality Chains',
       'Nagziri Manufacturing & Processing Units',
-      'Pilgrimage Events & Large Public Summits',
+      'Pilgrimage Events & Public Summits',
       'Educational Campuses & Colleges'
     ],
     capabilities: [
@@ -215,8 +229,8 @@ const cityDirectory: Record<string, CityData> = {
     hardwareDeployed: ['Crowd Control Stanchions', 'Acoustic Earpieces', 'Microfiber Dust Mops', 'Duty Flashlights'],
     complianceSpecs: [
       { label: 'PSARA License', value: 'Statewide MP Authorized' },
-      { label: 'Police Coordination', value: 'Local Thana Intimated' },
-      { label: 'Verification', value: 'Aadhaar Biometric KYC' },
+      { label: 'Police Coordination', value: 'Local Police Intimated' },
+      { label: 'Verification', value: '100% Government KYC' },
       { label: 'Staff Turnout', value: 'Peak Cap / Black Bouncer Uniform' },
     ]
   },
@@ -225,7 +239,7 @@ const cityDirectory: Record<string, CityData> = {
     tagline: 'Northern MP Commercial Logistics & Industrial Guarding Wing',
     division: 'Chambal / Gwalior Division',
     pinCodes: '474001 - 474020',
-    phone: '+91 98262 59292',
+    phone: '+91 98262 59020',
     description: 'Disciplined security squads, armed cash van sentries, retail mall cleaning staff, and warehouse access controllers operating across industrial parks and commercial hubs in Gwalior and Malanpur.',
     responseUnit: 'Northern Zone Field Supervisory Command',
     turnaroundTime: 'Deployment Mobilized within 48 Hours',
@@ -250,7 +264,7 @@ const cityDirectory: Record<string, CityData> = {
     ],
     hardwareDeployed: ['Handheld Metal Detectors', 'Walkie-Talkie Sets', 'Floor Scrubbers', 'Sentry Batons'],
     complianceSpecs: [
-      { label: 'PSARA License', value: 'Valid Through Aug 2027' },
+      { label: 'PSARA License', value: 'PSA/L/74/MP/2023/FEB/3/425' },
       { label: 'Statutory EPF/ESIC', value: '100% Monthly Challans' },
       { label: 'Police Verification', value: 'Complete Record Check' },
       { label: 'Turnout Standard', value: 'Crisp Uniform & Badging' },
@@ -261,7 +275,7 @@ const cityDirectory: Record<string, CityData> = {
     tagline: 'Eastern Defense, Mining & Heavy Manufacturing Guarding Hub',
     division: 'Mahakoshal Division',
     pinCodes: '482001 - 482011',
-    phone: '+91 98262 59292',
+    phone: '+91 98262 59020',
     description: 'Heavy industrial sentries, raw material loss prevention officers, defense perimeter controllers, and facility cleaning squads serving engineering units, mining belts, and commercial hubs in Jabalpur.',
     responseUnit: 'Mahakoshal Command Field Unit',
     turnaroundTime: 'Survey & Post Plan in 24 Hours',
@@ -291,221 +305,96 @@ const cityDirectory: Record<string, CityData> = {
       { label: 'Wage Standards', value: 'MP Minimum Wages Act' },
       { label: 'Supervision', value: 'Active Night Audits' },
     ]
-  },
-  ratlam: {
-    name: 'Ratlam',
-    tagline: 'Rail Transit, Gold & Chemical Logistics Sentry Wing',
-    division: 'Malwa Division',
-    pinCodes: '457001',
-    phone: '+91 98262 59292',
-    description: 'Guards trained for jewelry retail showrooms, chemical processing facilities, rail cargo transport warehouses, and commercial spaces across Ratlam.',
-    responseUnit: 'Western MP Mobile Relief Squad',
-    turnaroundTime: 'Deployment within 24 to 48 Hours',
-    districts: [
-      'Dosigaon Industrial Belt',
-      'Station Road & Commercial Hub',
-      'Jaora Road Transport & Warehousing Yard',
-      'Manak Chowk Retail Zone'
-    ],
-    sectors: [
-      'Rail Cargo Transit & Logistics Depots',
-      'Jewelry & High-Value Retail Showrooms',
-      'Chemical & Pharmaceutical Plants',
-      'Residential Complexes & Townships'
-    ],
-    capabilities: [
-      'High-Value Asset Sentry Protection',
-      'Visitor ID Verification & Pass Register',
-      'Daily Microfiber Floor Mopping',
-      'Shift-End Metal Detector Frisking'
-    ],
-    hardwareDeployed: ['Handheld Metal Detectors', 'Walkie-Talkie Sets', 'Duty Flashlights', 'Microfiber Mops'],
-    complianceSpecs: [
-      { label: 'PSARA License', value: 'Statewide MP Licensed' },
-      { label: 'EPF/ESIC', value: '100% Direct Credit' },
-      { label: 'Background Check', value: 'Police KYC Cleared' },
-      { label: 'Emergency Backup', value: 'Immediate Reliever' },
-    ]
-  },
-  satna: {
-    name: 'Satna',
-    tagline: 'Cement Manufacturing & Mining Industrial Security Epicenter',
-    division: 'Vindhya Division',
-    pinCodes: '485001',
-    phone: '+91 98262 59292',
-    description: 'Heavy industrial gatekeepers, limestone mining sentries, weighbridge challan auditors, and shopfloor cleaners deployed across cement corridors in Satna and Maihar.',
-    responseUnit: 'Vindhya Industrial Patrol Fleet',
-    turnaroundTime: 'Rapid Deployment Plan in 24 Hours',
-    districts: [
-      'Maihar Cement Industrial Corridor',
-      'Satna Industrial Estate',
-      'Panna Road Mining Corridor',
-      'Rewa Road Commercial & Logistics Strip'
-    ],
-    sectors: [
-      'Cement Manufacturing Mega Plants',
-      'Limestone Mining & Transport Yards',
-      'Heavy Equipment Warehousing Hubs',
-      'Commercial Buildings & Banks'
-    ],
-    capabilities: [
-      'Weighbridge Slip & Gate Pass Matching',
-      'Truck Undercarriage Inspection Mirrors',
-      'Heavy PPE Compliance Monitoring',
-      'Shopfloor Scrap & Dust Cleanup'
-    ],
-    hardwareDeployed: ['Under-Vehicle Mirrors', 'High-Vis Vests', 'Search Floodlights', 'Industrial Vacuums'],
-    complianceSpecs: [
-      { label: 'Mines & Factories Norms', value: 'Compliant' },
-      { label: 'Statutory Records', value: 'EPF & ESIC Verified' },
-      { label: 'Supervision', value: '2 AM – 5 AM Midnight Checks' },
-      { label: 'Staff KYC', value: '100% Background Cleared' },
-    ]
-  },
-  sagar: {
-    name: 'Sagar',
-    tagline: 'Bundelkhand Central Institutional & Refinery Security Wing',
-    division: 'Bundelkhand Division',
-    pinCodes: '470001 - 470004',
-    phone: '+91 98262 59292',
-    description: 'Educational university campus guards, bank branch sentries, hospital sanitization crews, and refinery gate controllers across Sagar and Bina.',
-    responseUnit: 'Bundelkhand Regional Supervisor Squad',
-    turnaroundTime: 'Survey Complete within 24 Hours',
-    districts: [
-      'Sagar Cantonment Board Zone',
-      'Civil Lines Commercial Complexes',
-      'Bina Refinery Industrial Corridor',
-      'Dhawa Industrial Area'
-    ],
-    sectors: [
-      'University & College Campuses',
-      'Refineries & Petrochemical Hubs',
-      'District Hospitals & Medical Facilities',
-      'Commercial Retail Hubs'
-    ],
-    capabilities: [
-      'Campus Gate Authorization & Student Logs',
-      'Automated Restroom Deep Sanitization',
-      'Perimeter Fence Night Foot Patrols',
-      'Emergency Hydrant & Fire Response'
-    ],
-    hardwareDeployed: ['Handheld Metal Detectors', 'Walkie-Talkie Sets', 'Cleaning Carts', 'Duty Batons'],
-    complianceSpecs: [
-      { label: 'PSARA License', value: 'All-MP Authorized' },
-      { label: 'Labor Compliance', value: '100% Audited Challans' },
-      { label: 'Discipline', value: 'Ex-Defense / Trained' },
-      { label: 'Billing Support', value: 'Input Tax Credit (ITC)' },
-    ]
-  },
-  khandwa: {
-    name: 'Khandwa',
-    tagline: 'Nimar Power Generation & Agro-Processing Sentry Hub',
-    division: 'Nimar Division',
-    pinCodes: '450001',
-    phone: '+91 98262 59292',
-    description: 'Substation security personnel, raw grain storehouse sentries, agro-processing guards, and commercial property housekeeping staff in Khandwa.',
-    responseUnit: 'Nimar Zone Sentry Command',
-    turnaroundTime: 'Mobilized within 24 to 48 Hours',
-    districts: [
-      'Nimar Industrial Belt',
-      'Civil Lines Khandwa Hub',
-      'Harsud Road Agro-Processing Zone',
-      'Thermal Power Sub-station Corridors'
-    ],
-    sectors: [
-      'Power Plants & Electric Substations',
-      'Grain Warehouses & Agro Storage Depots',
-      'Cotton & Ginning Mills',
-      'Residential Housing Societies'
-    ],
-    capabilities: [
-      'High-Tension Substation Perimeter Guarding',
-      'Raw Grain Loss Prevention & Weigh Checks',
-      'Society Gate Barrier & Visitor Logs',
-      'Daily Podium & Corridor Sweeping'
-    ],
-    hardwareDeployed: ['Long-Range Search Torches', 'Sentry Batons', 'Road Brooms', 'Register Tablets'],
-    complianceSpecs: [
-      { label: 'PSARA License', value: 'Govt. PSARA Licensed' },
-      { label: 'Minimum Wages', value: 'State Notification Compliant' },
-      { label: 'Social Security', value: 'EPF & ESIC Passbook Credit' },
-      { label: 'Relievers', value: 'Zero Delay Roster' },
-    ]
-  },
-  rewa: {
-    name: 'Rewa',
-    tagline: 'Vindhya Solar Infrastructure & Commercial Facility Wing',
-    division: 'Vindhya Division',
-    pinCodes: '486001',
-    phone: '+91 98262 59292',
-    description: 'Solar park perimeter defense sentries, commercial complex security guards, bank branch sentries, and daily janitorial cleaning staff in Rewa.',
-    responseUnit: 'Solar Infrastructure Security Squad',
-    turnaroundTime: 'On-Site Plan in 24 Hours',
-    districts: [
-      'Rewa Ultra Mega Solar Park Corridor',
-      'Gura Industrial Estate',
-      'College Road Commercial Hub',
-      'Kothi Compound Administrative Belt'
-    ],
-    sectors: [
-      'Solar Power Infrastructure & Plants',
-      'Commercial Shopping Plazas',
-      'Banking Branches & ATM Vaults',
-      'Government & Institutional Complexes'
-    ],
-    capabilities: [
-      'Large Open Yard Solar Panel Guarding',
-      'Night Searchlight Foot Patrols',
-      'Commercial Corridor Janitorial Care',
-      'Main Access Gate Barrier Logs'
-    ],
-    hardwareDeployed: ['High-Power Search Flashlights', 'Two-Way Radios', 'Microfiber Wet/Dry Mops', 'Gate Intercoms'],
-    complianceSpecs: [
-      { label: 'PSARA License', value: 'Valid Through 2027' },
-      { label: 'Statutory Proof', value: 'Monthly ECR Challans' },
-      { label: 'Verification', value: 'Local Police KYC' },
-      { label: 'Client Protection', value: 'Zero Vicarious Liability' },
-    ]
   }
 };
 
-// 1. Static Generation for Programmatic SEO across all defined cities
-export async function generateStaticParams() {
-  return Object.keys(cityDirectory).map((city) => ({
-    city,
-  }));
+// Programmatic Generator for Remaining 48 Districts to Guarantee 100% Indexing
+export function getDistrictData(slug: string): CityData | null {
+  const cleanSlug = slug.toLowerCase();
+
+  if (primaryDistrictDirectory[cleanSlug]) {
+    return primaryDistrictDirectory[cleanSlug];
+  }
+
+  // Find district match in all 55 districts
+  const matchedDistrict = allMpDistrictsList.find(d => formatSlug(d) === cleanSlug);
+  if (!matchedDistrict) return null;
+
+  return {
+    name: matchedDistrict,
+    tagline: `Statutory PSARA Security & Facility Operations Wing`,
+    division: `${matchedDistrict} District Headquarters`,
+    pinCodes: `Statewide PIN Corridor (${matchedDistrict})`,
+    phone: '+91 98262 59020',
+    description: `Vidhya Security Force provides government PSARA-licensed commercial security guards, armed bank sentries, loss prevention officers, and mechanized housekeeping services across ${matchedDistrict} district, Madhya Pradesh.`,
+    responseUnit: `${matchedDistrict} Mobile Field Supervisory Squad`,
+    turnaroundTime: 'Deployment Roster in 24-48 Hours',
+    districts: [
+      `${matchedDistrict} Commercial Center & Collectorate Area`,
+      `${matchedDistrict} Industrial Area & Logistics Belt`,
+      `Banking Corridors & Financial Complexes in ${matchedDistrict}`,
+      `Gated Residential Townships & Healthcare Hubs`
+    ],
+    sectors: [
+      'Commercial Complexes, Banks & Retail Centers',
+      'Warehousing, Grain Storage & Industrial Units',
+      'Hospitals, Diagnostic Centers & Educational Campuses',
+      'Residential Housing Societies & High-Rise Townships'
+    ],
+    capabilities: [
+      'Main Gate Access Control & Visitor Badging',
+      '24/7 Foot Patrols & Night Perimeter Checks',
+      'Mechanized Commercial Sweeping & Washroom Sanitization',
+      'Material Dispatch Challan Verification'
+    ],
+    hardwareDeployed: ['Handheld Metal Detectors (HHMD)', 'Walkie-Talkie Radios', 'Microfiber Wet/Dry Mops', 'Heavy Duty Search Torches'],
+    complianceSpecs: [
+      { label: 'PSARA License', value: 'PSA/L/74/MP/2023/FEB/3/425' },
+      { label: 'EPF Registration', value: 'MPIND1462732000' },
+      { label: 'ESIC Registration', value: '18000237700000999' },
+      { label: 'Police Verification', value: '100% Background KYC Cleared' }
+    ]
+  };
 }
 
+// 1. Static Generation for Programmatic SEO across all 55 MP Districts
+export async function generateStaticParams() {
+  // Includes all 55 districts plus special industrial corridors (like Pithampur)
+  const combined = Array.from(new Set(['pithampur', ...allMpDistrictsList.map(d => formatSlug(d))]));
+  return combined.map(city => ({ city }));
+}
+
+// 2. High-Intent Metadata for Local SEO Ranking
 export async function generateMetadata({ params }: { params: Promise<{ city: string }> }): Promise<Metadata> {
   const { city } = await params;
-  const cityKey = city.toLowerCase();
-  const data = cityDirectory[cityKey];
+  const data = getDistrictData(city);
 
   if (!data) {
     return {
       title: 'City Deployment Directory | Vidhya Security Force Madhya Pradesh',
-      description: 'PSARA licensed security guard and housekeeping deployments across Madhya Pradesh[cite: 5].',
+      description: 'PSARA licensed security guard and housekeeping deployments across Madhya Pradesh.',
     };
   }
 
   return {
     title: `Best Security Guard Agency in ${data.name}, MP | PSARA Licensed VSF`,
-    description: `Hire police-verified security guards, armed gunmen, VIP bouncers & industrial housekeeping in ${data.name} (PIN: ${data.pinCodes}). Full EPF/ESIC statutory compliance. Contact +91 98262 59292.`,
+    description: `Hire police-verified security guards, armed gunmen, VIP bouncers & mechanized housekeeping in ${data.name}, Madhya Pradesh. 100% EPF/ESIC statutory compliance. Direct Call: +91 98262 59020.`,
     keywords: [
       `security services in ${data.name.toLowerCase()}`,
       `security guard agency ${data.name.toLowerCase()}`,
-      `hire bouncers ${data.name.toLowerCase()}`,
-      `factory gate security ${data.name.toLowerCase()}`,
-      `commercial housekeeping ${data.name.toLowerCase()}`,
-      `psara licensed security agency ${data.name.toLowerCase()}`
+      `hire security guard in ${data.name.toLowerCase()}`,
+      `housekeeping services ${data.name.toLowerCase()}`,
+      `armed gunmen ${data.name.toLowerCase()}`,
+      `psara licensed security agency in ${data.name.toLowerCase()}`,
+      `vidhya security force ${data.name.toLowerCase()}`
     ],
     alternates: {
-      canonical: `https://vidhyasecurity.com/cities/${cityKey}`,
+      canonical: `https://vidhyasecurityforce.in/cities/${city}`,
     },
     openGraph: {
-      title: `Top Security Guard & Facility Agency in ${data.name} | Vidhya Security Force`,
-      description: `Licensed guarding details and mechanized housekeeping for commercial, SEZ, and industrial properties in ${data.name}, MP.`,
-      url: `https://vidhyasecurity.com/cities/${cityKey}`,
+      title: `Top Security Guard & Housekeeping Agency in ${data.name} | Vidhya Security Force`,
+      description: `Licensed guarding details and mechanized housekeeping for commercial, industrial, and residential properties in ${data.name}, MP.`,
+      url: `https://vidhyasecurityforce.in/cities/${city}`,
       type: 'website',
     }
   };
@@ -513,28 +402,24 @@ export async function generateMetadata({ params }: { params: Promise<{ city: str
 
 export default async function CitySlugPage({ params }: { params: Promise<{ city: string }> }) {
   const { city } = await params;
-  const cityKey = city.toLowerCase();
-  const currentCity = cityDirectory[cityKey];
+  const currentCity = getDistrictData(city);
 
   if (!currentCity) {
     return notFound();
   }
 
-  const allCityKeys = Object.keys(cityDirectory);
-
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SecurityService',
-    'name': `Vidhya Security Force & Housekeeping Services - ${currentCity.name} Branch`,
+    'name': `Vidhya Security Force & Housekeeping Services - ${currentCity.name}`,
     'description': currentCity.description,
-    'url': `https://vidhyasecurity.com/cities/${cityKey}`,
-    'telephone': '+919826259292',
+    'url': `https://vidhyasecurityforce.in/cities/${city}`,
+    'telephone': '+919826259020',
     'priceRange': '₹₹',
     'address': {
       '@type': 'PostalAddress',
       'addressLocality': currentCity.name,
       'addressRegion': 'Madhya Pradesh',
-      'postalCode': currentCity.pinCodes,
       'addressCountry': 'IN'
     },
     'areaServed': {
@@ -572,7 +457,7 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="font-heading font-semibold uppercase tracking-wide text-slate-700">
-                {currentCity.division} &bull; PIN: {currentCity.pinCodes}
+                {currentCity.division} &bull; {currentCity.pinCodes}
               </span>
             </div>
           </div>
@@ -620,7 +505,7 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
               </div>
               <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
                 <span className="font-sans text-[10px] text-slate-400 uppercase tracking-tight font-semibold">Night Supervision</span>
-                <div className="font-heading text-xs sm:text-sm font-bold text-[#0F172A] mt-0.5">Midnight Surprise Audits</div>
+                <div className="font-heading text-xs sm:text-sm font-bold text-[#0F172A] mt-0.5">Surprise Night Audits</div>
                 <div className="text-[10px] text-slate-500 font-medium mt-1">2 AM – 5 AM Guard Checks</div>
               </div>
             </div>
@@ -635,18 +520,17 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
-                href="tel:+919826259292"
+                href="tel:+919826259020"
                 className="inline-flex items-center gap-2 rounded border border-slate-200 bg-slate-50 px-5 py-3 font-heading text-xs font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100 transition-colors"
               >
                 <PhoneCall className="h-4 w-4 text-amber-600" />
-                <span>Control Room: +91 98262 59292</span>
+                <span>Control Room: +91 98262 59020</span>
               </a>
             </div>
           </div>
 
           {/* Deployment Zones & Industry Sectors */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Left: Key Deployment Clusters */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
               <div>
                 <span className="font-heading text-xs font-bold uppercase tracking-widest text-red-700 block mb-1">
@@ -672,7 +556,6 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
               </ul>
             </div>
 
-            {/* Right: Industry Sectors Served */}
             <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
               <div>
                 <span className="font-heading text-xs font-bold uppercase tracking-widest text-amber-700 block mb-1">
@@ -701,7 +584,6 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
 
           {/* Manpower Capabilities vs Tooling Manifest */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
-            {/* Left: Specialized Services */}
             <div className="md:col-span-7 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
               <div>
                 <span className="font-heading text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1">
@@ -721,7 +603,6 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
                 ))}
               </div>
 
-              {/* Hardware Strip */}
               <div className="pt-4 border-t border-slate-100">
                 <span className="flex items-center gap-1.5 font-heading text-[11px] font-bold uppercase text-slate-400 mb-2">
                   <Wrench className="h-3.5 w-3.5 text-amber-600" />
@@ -737,7 +618,6 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
               </div>
             </div>
 
-            {/* Right: Statutory Compliance Specs */}
             <div className="md:col-span-5 rounded-2xl border border-slate-200 bg-[#0F172A] p-6 sm:p-8 text-white shadow-panel flex flex-col justify-between space-y-4">
               <div>
                 <span className="font-heading text-xs font-bold uppercase tracking-widest text-amber-400 block mb-1">
@@ -775,20 +655,20 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
               Explore Other Major MP Deployment Hubs
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {allCityKeys
-                .filter((k) => k !== cityKey)
-                .slice(0, 6)
-                .map((k) => (
+              {allMpDistrictsList
+                .filter((d) => formatSlug(d) !== city.toLowerCase())
+                .slice(0, 12)
+                .map((d) => (
                   <Link
-                    key={k}
-                    href={`/cities/${k}`}
+                    key={d}
+                    href={`/cities/${formatSlug(d)}`}
                     className="p-3.5 rounded-xl bg-white border border-slate-200 hover:border-red-700/50 hover:shadow-xs transition-all text-center group"
                   >
                     <div className="font-heading text-xs font-bold uppercase text-[#0F172A] group-hover:text-red-700 transition-colors">
-                      {cityDirectory[k].name}
+                      {d}
                     </div>
                     <div className="font-sans text-[10px] text-slate-400 mt-0.5 truncate">
-                      {cityDirectory[k].division}
+                      Madhya Pradesh
                     </div>
                   </Link>
                 ))}
@@ -818,11 +698,11 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
-                href="tel:+919826259292"
+                href="tel:+919826259020"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded border border-slate-700 bg-slate-800 px-5 py-3.5 font-heading text-xs font-bold uppercase tracking-wider text-white hover:bg-slate-700 transition-colors"
               >
                 <PhoneCall className="h-4 w-4 text-amber-400" />
-                <span>+91 98262 59292</span>
+                <span>+91 98262 59020</span>
               </a>
             </div>
           </section>

@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   Clock,
   Building2,
-  CheckCircle2,
   BadgeCheck,
   Shield,
   Truck
@@ -68,7 +67,7 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-[#0F172A] font-sans antialiased selection:bg-red-700 selection:text-white">
+    <div className="min-h-screen w-full overflow-x-hidden flex flex-col bg-slate-50 text-[#0F172A] font-sans antialiased selection:bg-red-700 selection:text-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -76,7 +75,7 @@ export default function ContactPage() {
 
       <Navbar />
 
-      <main className="flex-1">
+      <main className="flex-1 w-full">
         {/* Top Status Ribbon */}
         <section className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8 text-xs">
@@ -206,15 +205,13 @@ export default function ContactPage() {
           </div>
         </section>
 
-        {/* Clean Center-Aligned Deployment Form Container */}
+        {/* Clean Form Section */}
         <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
-            <DeploymentRequestForm />
-          </div>
+          <DeploymentRequestForm />
 
           {/* Client Assurance Badges */}
-          <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-sans">
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1 text-center">
+          <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-sans">
+            <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-1 text-center shadow-xs">
               <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-700 mb-2">
                 <Clock className="h-4 w-4" />
               </div>
@@ -222,7 +219,7 @@ export default function ContactPage() {
               <div className="text-slate-500 text-[11px]">Fast local response in Indore &amp; nearby belts.</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1 text-center">
+            <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-1 text-center shadow-xs">
               <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 mb-2">
                 <Shield className="h-4 w-4" />
               </div>
@@ -230,7 +227,7 @@ export default function ContactPage() {
               <div className="text-slate-500 text-[11px]">Full compliance with zero client liability.</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1 text-center">
+            <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-1 text-center shadow-xs">
               <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-700 mb-2">
                 <BadgeCheck className="h-4 w-4" />
               </div>
@@ -238,7 +235,7 @@ export default function ContactPage() {
               <div className="text-slate-500 text-[11px]">Active inspections from 2 AM to 5 AM.</div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-1 text-center">
+            <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-1 text-center shadow-xs">
               <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700 mb-2">
                 <Truck className="h-4 w-4" />
               </div>

@@ -1,171 +1,401 @@
 'use client';
 
 import { useState } from 'react';
-import { Shield, PhoneCall, Send, CheckCircle2, Building2, MapPin } from 'lucide-react';
+import {
+  ShieldCheck,
+  PhoneCall,
+  Send,
+  CheckCircle2,
+  Building2,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Shield,
+  Loader2,
+  Clock4,
+  AlertCircle,
+  FileCheck2,
+} from 'lucide-react';
+
+const serviceOptions = [
+  'Industrial / Factory Gate Security',
+  'Commercial / Office Complex Sentry',
+  'Residential Society & Township Security',
+  'Corporate & Industrial Housekeeping',
+  'Armed Security Guards / Bank Sentry',
+  'VIP Bouncers & Event Marshals',
+  'Combined Security & Housekeeping Package',
+];
+
+const cityOptions = [
+  'Agar Malwa',
+  'Alirajpur',
+  'Anuppur',
+  'Ashoknagar',
+  'Balaghat',
+  'Barwani',
+  'Betul',
+  'Bhind',
+  'Bhopal (State Capital)',
+  'Burhanpur',
+  'Chhatarpur',
+  'Chhindwara',
+  'Damoh',
+  'Datia',
+  'Dewas',
+  'Dhar',
+  'Dindori',
+  'Guna',
+  'Gwalior',
+  'Harda',
+  'Indore',
+  'Jabalpur',
+  'Jhabua',
+  'Katni',
+  'Khandwa (East Nimar)',
+  'Khargone (West Nimar)',
+  'Maihar',
+  'Mandla',
+  'Mandsaur',
+  'Mauganj',
+  'Morena',
+  'Narmadapuram (Hoshangabad)',
+  'Narsinghpur',
+  'Neemuch',
+  'Niwari',
+  'Pandhurna',
+  'Panna',
+  'Raisen',
+  'Rajgarh',
+  'Ratlam',
+  'Rewa',
+  'Sagar',
+  'Satna',
+  'Sehore',
+  'Seoni',
+  'Shahdol',
+  'Shajapur',
+  'Sheopur',
+  'Shivpuri',
+  'Sidhi',
+  'Singrauli',
+  'Tikamgarh',
+  'Ujjain',
+  'Umaria',
+  'Vidisha'
+];
 
 export default function DeploymentRequestForm() {
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [city, setCity] = useState('Indore');
+  const [serviceType, setServiceType] = useState('Industrial / Factory Gate Security');
+  const [headcountNotes, setHeadcountNotes] = useState('');
+
+  const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const isValidIndianMobile = (num: string) => {
+    const cleaned = num.replace(/\D/g, '');
+    return /^[6-9]\d{9}$/.test(cleaned);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setPhone(val);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!isValidIndianMobile(phone)) {
+      setErrorMessage('Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: fullName.trim(),
+          phone: phone.trim(),
+          email: email.trim().toLowerCase(),
+          company_name: companyName.trim(),
+          city,
+          service_type: serviceType,
+          headcount_notes: headcountNotes.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit proposal request.');
+      }
+
+      setSubmitted(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Connection error. Please dial our central control room directly.';
+      setErrorMessage(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="w-full bg-[#0F172A] text-white p-6 sm:p-10 lg:p-12 relative overflow-hidden">
-      {/* Background Decorative Gradient */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs font-sans">
+      <div className="grid grid-cols-1 lg:grid-cols-12">
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center relative z-10">
+        {/* Left Operational Context Sidebar */}
+        <div className="lg:col-span-5 bg-slate-900 text-white p-6 sm:p-8 lg:p-10 flex flex-col justify-between space-y-8">
+          <div className="space-y-5">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-mono font-medium">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>PSARA Verified Manpower</span>
+            </div>
 
-        {/* Left Column: Operations Overview */}
-        <div className="lg:col-span-5 space-y-5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs font-heading font-bold uppercase tracking-wider">
-            <Shield className="w-3.5 h-3.5 text-red-500 fill-red-500" />
-            <span>Manpower Placement Desk</span>
+            <div className="space-y-2">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                Request Deployment Quote
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Submit parameters for corporate guarding, industrial sentries, or housekeeping teams. Our operations officer will respond with a site post proposal within 2 hours.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-slate-800 text-xs text-slate-300">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>Zero-obligation on-site risk analysis &amp; post mapping</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>100% direct statutory compliance (EPF, ESIC, GST)</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <FileCheck2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>Active night supervisory patrolling (2 AM &ndash; 5 AM)</span>
+              </div>
+            </div>
           </div>
 
-          <h2 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-white leading-tight">
-            Request a Free Site Assessment &amp; Proposal
-          </h2>
-
-          <p className="font-sans text-xs sm:text-sm text-slate-300 leading-relaxed">
-            Submit your requirements for commercial security, factory gate sentries, or facility housekeeping manpower. Our Field Operations Manager will contact you within 2 hours.
-          </p>
-
-          <div className="pt-4 border-t border-slate-800 space-y-2.5 text-xs font-sans text-slate-200">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Zero-obligation on-site risk analysis</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Customized manpower strength &amp; shift roster</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Full statutory EPF, ESIC, and PSARA compliance guarantee</span>
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-800">
+          <div className="pt-6 border-t border-slate-800 space-y-2">
+            <span className="block text-[10px] font-mono uppercase tracking-wider text-slate-400">
+              Central Control Room
+            </span>
             <a
               href="tel:+919826259292"
-              className="inline-flex items-center gap-2 font-heading text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-300 hover:text-amber-200 transition"
+              className="inline-flex items-center gap-2 text-sm font-bold text-white hover:text-amber-300 transition-colors"
             >
               <PhoneCall className="w-4 h-4 text-red-500" />
-              <span>Control Room: +91 98262 59292</span>
+              <span>+91 98262 59292</span>
             </a>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+              <Clock4 className="w-3 h-3 text-emerald-400" />
+              <span>24/7 Rapid Deployment Desk</span>
+            </div>
           </div>
         </div>
 
-        {/* Right Column: Lead Form Card */}
-        <div className="lg:col-span-7 bg-white text-[#0F172A] p-5 sm:p-8 rounded-2xl shadow-xl border border-slate-200">
+        {/* Right Interactive Form Area */}
+        <div className="lg:col-span-7 p-6 sm:p-8 lg:p-10 bg-white">
           {submitted ? (
-            <div className="py-10 text-center space-y-3">
+            <div className="py-12 text-center space-y-4">
               <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-8 h-8" />
+                <CheckCircle2 className="w-7 h-7" />
               </div>
-              <h3 className="font-heading text-xl sm:text-2xl font-black uppercase tracking-tight text-[#0F172A]">
-                Deployment Request Received
-              </h3>
-              <p className="font-sans text-slate-600 text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
-                Our Field Operations Officer will review your parameters and reach out via phone shortly.
-              </p>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                  Proposal Request Logged
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  Your requirements for <strong className="text-slate-800">{city}</strong> have been dispatched to our central operations desk. An officer will connect at <strong className="text-slate-800">+91 {phone}</strong> or via email at <strong className="text-slate-800">{email}</strong> shortly.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmitted(false);
+                  setFullName('');
+                  setPhone('');
+                  setEmail('');
+                  setCompanyName('');
+                  setHeadcountNotes('');
+                }}
+                className="mt-4 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold uppercase tracking-wider transition cursor-pointer"
+              >
+                Submit New Request
+              </button>
             </div>
           ) : (
-            <form onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {errorMessage && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="leading-snug">{errorMessage}</span>
+                </div>
+              )}
+
+              {/* Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Your Full Name *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Rajesh Sharma"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:border-red-700 focus:ring-1 focus:ring-red-700 outline-none transition"
-                  />
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. Rajesh Sharma"
+                      className="w-full bg-white border border-slate-300 rounded py-2 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition"
+                    />
+                  </div>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Phone Number *
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Mobile Number (India 10-Digit) *
                   </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="+91 98260 XXXXX"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:border-red-700 focus:ring-1 focus:ring-red-700 outline-none transition"
-                  />
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-semibold text-slate-500 font-mono select-none">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      required
+                      maxLength={10}
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      placeholder="98260 12345"
+                      className="w-full bg-white border border-slate-300 rounded py-2 pl-12 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Email & Company */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Official Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="w-full bg-white border border-slate-300 rounded py-2 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Company / Society Name
                   </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Apex Industrial Park"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:border-red-700 focus:ring-1 focus:ring-red-700 outline-none transition"
-                  />
+                  <div className="relative">
+                    <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="e.g. Apex Industrial Park"
+                      className="w-full bg-white border border-slate-300 rounded py-2 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition"
+                    />
+                  </div>
                 </div>
+              </div>
+
+              {/* MP District & Service Wing */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    City / Location in MP *
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Deployment District in MP (All 55 Districts) *
                   </label>
-                  <select
-                    required
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:border-red-700 focus:ring-1 focus:ring-red-700 outline-none bg-white font-medium transition cursor-pointer"
-                  >
-                    <option value="Indore">Indore</option>
-                    <option value="Pithampur">Pithampur</option>
-                    <option value="Bhopal">Bhopal</option>
-                    <option value="Dewas">Dewas</option>
-                    <option value="Ujjain">Ujjain</option>
-                    <option value="Ratlam">Ratlam</option>
-                    <option value="Gwalior">Gwalior</option>
-                    <option value="Jabalpur">Jabalpur</option>
-                    <option value="Satna">Satna</option>
-                    <option value="Sagar">Sagar</option>
-                    <option value="Khandwa">Khandwa</option>
-                    <option value="Rewa">Rewa</option>
-                    <option value="Other">Other MP District</option>
-                  </select>
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <select
+                      required
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded py-2 pl-9 pr-3 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition cursor-pointer max-h-48"
+                    >
+                      {cityOptions.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Guarding / Facility Wing *
+                  </label>
+                  <div className="relative">
+                    <Shield className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <select
+                      required
+                      value={serviceType}
+                      onChange={(e) => setServiceType(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded py-2 pl-9 pr-3 text-xs text-slate-900 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition cursor-pointer"
+                    >
+                      {serviceOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
+              {/* Headcount Notes */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Services Required *
-                </label>
-                <select
-                  required
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:border-red-700 focus:ring-1 focus:ring-red-700 outline-none bg-white font-medium transition cursor-pointer"
-                >
-                  <option value="Industrial / Factory Gate Security">Industrial &amp; Factory Gate Security</option>
-                  <option value="Commercial / Office Complex Sentry">Commercial &amp; Office Complex Sentry</option>
-                  <option value="Residential Society Guards">Residential Society &amp; Township Security</option>
-                  <option value="Mechanized Housekeeping">Corporate &amp; Industrial Housekeeping</option>
-                  <option value="Armed Guards / Bank Sentry">Armed Security Guards / Bank Sentry</option>
-                  <option value="Event Bouncers & Marshals">VIP Bouncers &amp; Event Marshals</option>
-                  <option value="Combined Security + Housekeeping">Combined Security &amp; Housekeeping Package</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Estimated Headcount or Site Details
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Shift Timing &amp; Estimated Headcount Requirements
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. Need 4 security guards for 12-hour shifts at a plant near Pithampur..."
-                  className="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:border-red-700 focus:ring-1 focus:ring-red-700 outline-none resize-none transition"
+                  value={headcountNotes}
+                  onChange={(e) => setHeadcountNotes(e.target.value)}
+                  placeholder="e.g. Need 4 security guards for 12-hour shifts at a site..."
+                  className="w-full bg-white border border-slate-300 rounded p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 resize-none transition"
                 />
               </div>
 
+              {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-lg bg-red-700 hover:bg-red-800 text-white font-heading text-xs font-bold uppercase tracking-wider shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                disabled={loading}
+                className="w-full py-2.5 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white rounded text-xs font-bold uppercase tracking-wider transition duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shadow-xs"
               >
-                <Send className="w-4 h-4" />
-                <span>Submit Deployment Request</span>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Processing Submission...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Submit Proposal Request</span>
+                  </>
+                )}
               </button>
             </form>
           )}

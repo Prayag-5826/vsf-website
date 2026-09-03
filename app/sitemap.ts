@@ -1,74 +1,94 @@
 import { MetadataRoute } from 'next';
-import districts from '@/data/districts.json';
+import districtsData from '@/data/districts.json';
 
-const BASE_URL = 'https://vidhyasecurityforce.in';
+// Complete list of all 55 districts in Madhya Pradesh
+const all55Districts = [
+  'indore', 'pithampur', 'bhopal', 'dewas', 'ujjain', 'gwalior', 'jabalpur',
+  'ratlam', 'satna', 'sagar', 'rewa', 'khandwa', 'singrauli', 'neemuch', 'katni',
+  'agar-malwa', 'alirajpur', 'anuppur', 'ashoknagar', 'balaghat', 'barwani',
+  'betul', 'bhind', 'burhanpur', 'chhatarpur', 'chhindwara', 'damoh', 'datia',
+  'dhar', 'dindori', 'guna', 'harda', 'hoshangabad', 'jhabua', 'khargone',
+  'mandla', 'mandsaur', 'morena', 'narsinghpur', 'niwari', 'panna', 'raisen',
+  'rajgarh', 'sehore', 'seoni', 'shahdol', 'shajapur', 'sheopur', 'shivpuri',
+  'sidhi', 'tikamgarh', 'umaria', 'vidisha', 'mauganj', 'pandhurna', 'maihar'
+];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  // Static Core Routes
+  const baseUrl = 'https://vidhyasecurityforce.in';
+  const currentDate = new Date();
+
+  // 1. Core Primary Website Pages
   const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: `${BASE_URL}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
+      url: `${baseUrl}`,
+      lastModified: currentDate,
+      changeFrequency: 'daily',
       priority: 1.0,
     },
     {
-      url: `${BASE_URL}/services`,
-      lastModified: new Date(),
+      url: `${baseUrl}/cities`,
+      lastModified: currentDate,
       changeFrequency: 'weekly',
       priority: 0.9,
     },
     {
-      url: `${BASE_URL}/cities`,
-      lastModified: new Date(),
+      url: `${baseUrl}/services`,
+      lastModified: currentDate,
       changeFrequency: 'weekly',
-      priority: 0.9,
+      priority: 0.8,
     },
     {
-      url: `${BASE_URL}/about`,
-      lastModified: new Date(),
+      url: `${baseUrl}/services/security-guard`,
+      lastModified: currentDate,
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
-      url: `${BASE_URL}/gallery`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
+      url: `${baseUrl}/services/armed-gunman`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/services/housekeeping`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/services/bouncers`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
       priority: 0.7,
     },
     {
-      url: `${BASE_URL}/contact`,
-      lastModified: new Date(),
+      url: `${baseUrl}/about`,
+      lastModified: currentDate,
       changeFrequency: 'monthly',
-      priority: 0.9,
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.7,
     },
   ];
 
-  // Specific Service Pages
-  const serviceSlugs = [
-    'armed-security-guards',
-    'industrial-gate-security',
-    'vip-bouncers',
-    'mobile-patrol-supervision',
-    'corporate-housekeeping',
-    'industrial-factory-housekeeping',
-    'residential-township-facility',
-  ];
+  // 2. Programmatic Districts & Corridor URLs
+  const jsonSlugs = districtsData.map((d: { slug: string }) => d.slug.toLowerCase());
+  const combinedSlugs = Array.from(new Set([...jsonSlugs, ...all55Districts]));
 
-  const serviceRoutes: MetadataRoute.Sitemap = serviceSlugs.map((slug) => ({
-    url: `${BASE_URL}/services/${slug}`,
-    lastModified: new Date(),
-    changeFrequency: 'weekly',
-    priority: 0.85,
-  }));
+  const cityRoutes: MetadataRoute.Sitemap = combinedSlugs.map((slug) => {
+    const isMajorHub = ['indore', 'pithampur', 'bhopal', 'dewas', 'gwalior', 'jabalpur'].includes(slug);
 
-  // Dynamic MP District Pages (Rank #1 for all MP cities)
-  const districtRoutes: MetadataRoute.Sitemap = districts.map((district) => ({
-    url: `${BASE_URL}/cities/${district.slug}`,
-    lastModified: new Date(),
-    changeFrequency: 'weekly',
-    priority: 0.85,
-  }));
+    return {
+      url: `${baseUrl}/cities/${slug}`,
+      lastModified: currentDate,
+      changeFrequency: 'weekly',
+      priority: isMajorHub ? 0.9 : 0.8,
+    };
+  });
 
-  return [...staticRoutes, ...serviceRoutes, ...districtRoutes];
+  return [...staticRoutes, ...cityRoutes];
 }
