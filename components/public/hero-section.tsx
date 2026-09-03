@@ -15,7 +15,7 @@ import {
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-[#0F172A] text-white">
-      {/* Background Image: Hero Guard */}
+      {/* Background Image: Hero Guard with Mobile Visibility Fix */}
       <div className="absolute inset-0 z-0">
         <Image
           src="/assets/img/hero/hero-guard.webp"
@@ -23,12 +23,12 @@ export function HeroSection() {
           fill
           priority
           sizes="100vw"
-          className="object-cover object-[75%_center] lg:object-right opacity-40 lg:opacity-60"
+          className="object-cover object-[75%_top] opacity-80 md:object-[75%_center] lg:object-right md:opacity-40 lg:opacity-60"
         />
 
-        {/* Text Scrim Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/90 to-transparent lg:w-3/5" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-transparent to-[#0F172A]/40" />
+        {/* Text Scrim Overlay: Gradient tuned for high mobile contrast without hiding the guard */}
+        <div className="hidden lg:block absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/90 to-transparent lg:w-3/5" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/75 to-[#0F172A]/20 md:via-transparent md:to-[#0F172A]/40" />
 
         {/* Subtle Tech Pattern */}
         <div
