@@ -10,20 +10,50 @@ import {
   Menu,
   X,
   ArrowRight,
+  ChevronDown,
   FileCheck2,
   MapPin
 } from 'lucide-react';
+
+interface NavItem {
+  label: string;
+  href: string;
+  children?: { label: string; href: string }[];
+}
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const navLinks = [
+  // Highlight a link on its own page and on its sub-pages (e.g. /services/security-guard -> Services)
+  const isLinkActive = (href: string) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+
+  const navLinks: NavItem[] = [
     { label: 'Home', href: '/' },
     { label: 'About Us', href: '/about' },
-    { label: 'Services', href: '/services' },
+    {
+      label: 'Services',
+      href: '/services',
+      children: [
+        { label: 'Security Guard', href: '/services/security-guard' },
+        { label: 'Armed Security Guard', href: '/services/armed-gunman' },
+        { label: 'Housekeeping', href: '/services/housekeeping' },
+        { label: 'Bouncers', href: '/services/bouncers' },
+        { label: 'All Services', href: '/services' },
+      ],
+    },
     { label: 'Certifications', href: '/certifications' },
-    { label: 'MP Coverage', href: '/cities' },
+    {
+      label: 'MP Coverage',
+      href: '/cities',
+      children: [
+        { label: 'Indore', href: '/cities/indore' },
+        { label: 'Pithampur', href: '/cities/pithampur' },
+        { label: 'Bhopal', href: '/cities/bhopal' },
+        { label: 'All MP Districts', href: '/cities' },
+      ],
+    },
     { label: 'PSARA Compliance', href: '/compliance' },
     { label: 'Contact', href: '/contact' },
   ];
@@ -59,13 +89,13 @@ export function Navbar() {
       </div>
 
       {/* Main Bar */}
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-3.5 py-2 sm:px-6 lg:px-8">
+      <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl items-center justify-between px-3.5 py-2 sm:px-6 lg:px-8">
         {/* Brand Logo & Name */}
         <Link href="/" className="flex items-center gap-2.5 group shrink-0 min-w-0">
           <div className="relative h-9 w-9 sm:h-11 sm:w-11 shrink-0">
             <Image
               src="/assets/img/logo/logo.png"
-              alt="VSF Logo"
+              alt="Vidhya Security Force logo"
               width={96}
               height={96}
               quality={100}
@@ -87,19 +117,46 @@ export function Navbar() {
         {/* Desktop Links (Visible on screens >= 1024px) */}
         <div className="hidden lg:flex items-center gap-1 xl:gap-2 shrink-0">
           {navLinks.map((link) => {
-            const isActive = pathname === link.href;
+            const isActive = isLinkActive(link.href);
+            const linkClass = `px-2.5 py-1.5 font-sans text-xs font-semibold tracking-wide transition-colors rounded-md ${
+              isActive
+                ? 'bg-slate-100 text-red-700 font-bold'
+                : 'text-slate-700 hover:text-red-700 hover:bg-slate-50'
+            }`;
+
+            if (!link.children) {
+              return (
+                <Link key={link.href} href={link.href} className={linkClass}>
+                  {link.label}
+                </Link>
+              );
+            }
+
+            // Dropdown stays in the DOM (hidden with CSS) so search engines and keyboard users can reach every link.
             return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`px-2.5 py-1.5 font-sans text-xs font-semibold tracking-wide transition-colors rounded-md ${
-                  isActive
-                    ? 'bg-slate-100 text-red-700 font-bold'
-                    : 'text-slate-700 hover:text-red-700 hover:bg-slate-50'
-                }`}
-              >
-                {link.label}
-              </Link>
+              <div key={link.href} className="relative group">
+                <Link href={link.href} className={`${linkClass} inline-flex items-center gap-1`}>
+                  {link.label}
+                  <ChevronDown className="h-3 w-3 opacity-60 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+                </Link>
+                <div className="invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                  <div className="min-w-[210px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                    {link.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={`block rounded-lg px-3 py-2 font-sans text-xs font-semibold transition-colors ${
+                          pathname === child.href
+                            ? 'bg-red-50 text-red-700'
+                            : 'text-slate-700 hover:bg-slate-50 hover:text-red-700'
+                        }`}
+                      >
+                        {child.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -119,6 +176,7 @@ export function Navbar() {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="lg:hidden p-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-[#0F172A] transition-colors cursor-pointer"
             aria-label="Toggle Navigation Menu"
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="h-5 w-5 text-red-700" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -130,21 +188,43 @@ export function Navbar() {
         <div className="lg:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 shadow-xl animate-in slide-in-from-top-2 duration-150">
           <div className="flex flex-col space-y-1">
             {navLinks.map((link) => {
-              const isActive = pathname === link.href;
+              const isActive = isLinkActive(link.href);
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-3 py-2.5 rounded-lg text-sm font-sans font-semibold transition-colors flex items-center justify-between ${
-                    isActive
-                      ? 'bg-red-50 text-red-700 font-bold'
-                      : 'text-slate-700 hover:bg-slate-50 hover:text-red-700'
-                  }`}
-                >
-                  <span>{link.label}</span>
-                  <ArrowRight className="h-4 w-4 opacity-40" />
-                </Link>
+                <div key={link.href}>
+                  <Link
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`px-3 py-2.5 rounded-lg text-sm font-sans font-semibold transition-colors flex items-center justify-between ${
+                      isActive
+                        ? 'bg-red-50 text-red-700 font-bold'
+                        : 'text-slate-700 hover:bg-slate-50 hover:text-red-700'
+                    }`}
+                  >
+                    <span>{link.label}</span>
+                    <ArrowRight className="h-4 w-4 opacity-40" />
+                  </Link>
+
+                  {link.children && (
+                    <div className="ml-4 mt-0.5 mb-1 flex flex-col border-l border-slate-200 pl-3">
+                      {link.children
+                        .filter((child) => child.href !== link.href)
+                        .map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`rounded-md px-2 py-1.5 text-xs font-sans font-medium transition-colors ${
+                              pathname === child.href
+                                ? 'text-red-700 font-bold'
+                                : 'text-slate-600 hover:text-red-700'
+                            }`}
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

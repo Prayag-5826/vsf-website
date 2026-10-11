@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     'factory gate security pithampur'
   ],
   alternates: {
-    canonical: 'https://vidhyasecurity.com/contact',
+    canonical: 'https://vidhyasecurityforce.in/contact',
   },
 };
 
@@ -34,7 +34,7 @@ export default function ContactPage() {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
     'name': 'Vidhya Security Force & Housekeeping Services',
-    'image': 'https://vidhyasecurity.com/assets/img/logo/logo.png',
+    'image': 'https://vidhyasecurityforce.in/assets/img/logo/logo.png',
     'telephone': '+919826259292',
     'email': 'contact@vidhyasecurityforce.in',
     'address': {

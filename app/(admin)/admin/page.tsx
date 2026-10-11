@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { createBrowserClient } from '@supabase/ssr';
+import { getSupabase } from '@/lib/supabaseBrowser';
 import {
   MapPin,
   Loader2,
@@ -56,10 +56,8 @@ export default function OwnerLeadDeskPage() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [assigningOfficer, setAssigningOfficer] = useState(false);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  // One shared client that sends the session token with every request
+  const supabase = getSupabase();
 
   const fetchOfficers = async () => {
     const { data, error } = await supabase

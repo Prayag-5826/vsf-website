@@ -4,8 +4,8 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { createBrowserClient } from '@supabase/ssr';
 import { Lock, Mail, Loader2, ArrowLeft, KeyRound, ShieldAlert } from 'lucide-react';
+import { loginWithPassword } from '@/lib/session';
 
 function LoginForm() {
   const [identifier, setIdentifier] = useState('admin@vidhyasecurityforce.in');
@@ -16,83 +16,31 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect');
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://czbohynimtodyhlftbbn.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6Ym9oeW5pbXRvZHlobGZ0YmJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDQ3MjUsImV4cCI6MjA4MzYyMDcyNX0.z0dIYr7AQ4_BMS--QaiBPUAgTYRGPC3oWzRi4aB2UyA'
-  );
-
-  const setCookiesAndProceed = (token: string, user: any) => {
-    const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('vidhyasecurityforce.in');
-    const domainAttr = isProduction ? '; domain=.vidhyasecurityforce.in' : '';
-    const maxAge = 60 * 60 * 24 * 7;
-
-    document.cookie = `vsf_universal_token=${encodeURIComponent(token)}; path=/${domainAttr}; max-age=${maxAge}; SameSite=Lax; ${isProduction ? 'Secure' : ''}`;
-    document.cookie = `vsf_user_session=${encodeURIComponent(JSON.stringify(user))}; path=/${domainAttr}; max-age=${maxAge}; SameSite=Lax; ${isProduction ? 'Secure' : ''}`;
-
-    localStorage.setItem('vs_token', token);
-    localStorage.setItem('vs_active_user', JSON.stringify(user));
-
-    if (redirectUrl && (redirectUrl.startsWith('https://field.vidhyasecurityforce.in') || redirectUrl.startsWith('http://localhost'))) {
-      window.location.href = redirectUrl;
-    } else {
-      // Force hard browser redirect to clear hanging Next.js router states
-      window.location.assign('/admin');
-    }
-  };
-
   const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
 
-    const cleanInput = identifier.trim();
-
     try {
-      // 1. Direct Table Verification (public.users)
-      const { data: userRecord, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .or(`id.eq.${cleanInput},email.eq.${cleanInput},phone.eq.${cleanInput}`)
-        .maybeSingle();
+      const res = await loginWithPassword(identifier.trim(), password);
 
-      if (!userError && userRecord) {
-        if (userRecord.status === 'BLOCKED' || userRecord.status === 'SUSPENDED') {
-          setErrorMessage(`Account access suspended: ${userRecord.block_reason || 'Contact Operations Director.'}`);
-          setLoading(false);
-          return;
-        }
-
-        if (userRecord.password === password) {
-          const sessionPayload = {
-            id: userRecord.id,
-            name: userRecord.name,
-            email: userRecord.email,
-            phone: userRecord.phone,
-            role: userRecord.role,
-            avatar: userRecord.avatar || '/assets/img/logo/logo.png',
-            status: userRecord.status,
-          };
-          setCookiesAndProceed(`token-${userRecord.id}-${Date.now()}`, sessionPayload);
-          return;
-        } else {
-          setErrorMessage('Invalid security master passkey.');
-          setLoading(false);
-          return;
-        }
-      }
-
-      // 2. Fallback: Supabase Auth Verification
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: cleanInput,
-        password,
-      });
-
-      if (!authError && authData?.session) {
-        setCookiesAndProceed(authData.session.access_token, authData.user);
+      if (!res.ok) {
+        setErrorMessage(res.message || 'Invalid security credentials or account suspended.');
+        setLoading(false);
         return;
       }
 
-      setErrorMessage('User record not found in central database or credentials incorrect.');
+      // If a specific redirect target is provided (e.g. from the field app)
+      if (
+        redirectUrl &&
+        (redirectUrl.startsWith('https://field.vidhyasecurityforce.in') ||
+          redirectUrl.startsWith('http://localhost'))
+      ) {
+        window.location.href = redirectUrl;
+      } else {
+        // Hard assign ensures Next.js clears cached layout states and loads the new session
+        window.location.assign('/admin');
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'HQ network connection failure. Please retry.');
     } finally {

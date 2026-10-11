@@ -28,12 +28,12 @@ export const metadata: Metadata = {
     'factory gate security jabalpur gwalior'
   ],
   alternates: {
-    canonical: 'https://vidhyasecurity.com/cities',
+    canonical: 'https://vidhyasecurityforce.in/cities',
   },
   openGraph: {
     title: 'Madhya Pradesh Security Guard & Facility Hub | Vidhya Security Force',
     description: 'Licensed guarding squads and mechanized housekeeping deployments serving all industrial corridors and districts across MP.',
-    url: 'https://vidhyasecurity.com/cities',
+    url: 'https://vidhyasecurityforce.in/cities',
     type: 'website',
   }
 };
@@ -181,13 +181,21 @@ const allMpDistricts = [
   'Umaria', 'Vidisha', 'Mauganj', 'Pandhurna', 'Maihar'
 ];
 
+// Matches the slugs used by /cities/[city] ("Hoshangabad (Narmadapuram)" -> "hoshangabad")
+const districtSlug = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/\s*\(.*?\)\s*/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+
 export default function CitiesHubPage() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SecurityService',
     'name': 'Vidhya Security Force & Housekeeping Services',
     'description': 'Govt PSARA licensed security guard and mechanized facility housekeeping deployment across all 55 districts of Madhya Pradesh.',
-    'url': 'https://vidhyasecurity.com/cities',
+    'url': 'https://vidhyasecurityforce.in/cities',
     'telephone': '+919826259292',
     'priceRange': '₹₹',
     'areaServed': allMpDistricts.map((dist) => ({
@@ -417,13 +425,15 @@ export default function CitiesHubPage() {
 
             <div className="flex flex-wrap gap-2 pt-2">
               {allMpDistricts.map((district, idx) => (
-                <span
+                <Link
                   key={idx}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 font-sans text-xs font-medium text-slate-700 hover:border-red-700/40 transition-colors"
+                  href={`/cities/${districtSlug(district)}`}
+                  title={`Security guard & housekeeping services in ${district}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 font-sans text-xs font-medium text-slate-700 hover:border-red-700/40 hover:text-red-700 transition-colors"
                 >
                   <MapPin className="h-3 w-3 text-red-700" />
                   <span>{district}</span>
-                </span>
+                </Link>
               ))}
             </div>
           </section>
@@ -465,4 +475,4 @@ export default function CitiesHubPage() {
       <Footer />
     </div>
   );
-}
+} 

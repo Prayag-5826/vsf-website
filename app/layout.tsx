@@ -69,16 +69,14 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  // Add your Google Search Console verification token here once generated
-  verification: {
-    google: 'YOUR_GSC_VERIFICATION_TOKEN',
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="antialiased bg-white text-slate-900">{children}</body>
+    <html lang="en" className="h-full">
+      <body className="h-full antialiased bg-white text-slate-900 font-sans selection:bg-red-700 selection:text-white">
+        {children}
+      </body>
     </html>
   );
 }

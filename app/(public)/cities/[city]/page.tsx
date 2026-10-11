@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/public/navbar';
 import Footer from '@/components/public/footer';
+import { districtProfiles } from '@/data/district-profiles';
 
 interface CityData {
   name: string;
@@ -56,7 +57,7 @@ const primaryDistrictDirectory: Record<string, CityData> = {
     tagline: 'Central Operations Command & Rapid Mobilization Hub',
     division: 'Malwa Division',
     pinCodes: '452001 - 452020',
-    phone: '+91 98262 59020',
+    phone: '+91 98262 59292',
     description: 'Vidhya Security Force provides PSARA-licensed security guards, armed bank sentries, event bouncers, and mechanized corporate housekeeping across commercial towers, tech parks, shopping complexes, and industrial belts throughout Indore.',
     responseUnit: 'Dedicated 24/7 Mobile QRT & Supervisory Patrol',
     turnaroundTime: 'Immediate Survey (Within 2 Hours)',
@@ -93,7 +94,7 @@ const primaryDistrictDirectory: Record<string, CityData> = {
     tagline: 'Special Economic Zone (SEZ) & Automobile Industrial Gateway',
     division: 'Dhar / Indore Industrial Corridor',
     pinCodes: '454774 / 454775',
-    phone: '+91 98262 59020',
+    phone: '+91 98262 59292',
     description: 'Specialized industrial gatekeepers, material delivery challan controllers, cargo truck seal inspectors, and 5S factory housekeeping squads stationed across manufacturing plants and pharma cleanrooms in Pithampur SEZ.',
     responseUnit: 'Pithampur Industrial Night Patrol Squad',
     turnaroundTime: 'Guaranteed 24-Hour Mobilization',
@@ -130,7 +131,7 @@ const primaryDistrictDirectory: Record<string, CityData> = {
     tagline: 'Capital Division & Institutional Facility Network',
     division: 'Bhopal Division',
     pinCodes: '462001 - 462044',
-    phone: '+91 98262 59020',
+    phone: '+91 98262 59292',
     description: 'Enterprise guarding details, corporate facility housekeeping teams, and armed security marshals serving government administrative towers, corporate headquarters, hospitals, and industrial corridors across Bhopal and Mandideep.',
     responseUnit: 'Bhopal Regional Assistant Field Office',
     turnaroundTime: 'On-Site Survey Within 4 Hours',
@@ -167,7 +168,7 @@ const primaryDistrictDirectory: Record<string, CityData> = {
     tagline: 'Chemical, Textile & Processing Plant Security Hub',
     division: 'Ujjain Division',
     pinCodes: '455001',
-    phone: '+91 98262 59020',
+    phone: '+91 98262 59292',
     description: 'Full statutory compliance, police-verified sentry units, raw material loss prevention officers, and industrial scrubber operators serving heavy manufacturing plants, textile mills, and chemical facilities across Dewas.',
     responseUnit: 'Dewas Quick Response Patrol Unit',
     turnaroundTime: 'Deployment Ready in 24 Hours',
@@ -203,7 +204,7 @@ const primaryDistrictDirectory: Record<string, CityData> = {
     tagline: 'Hospitality, Event Crowd Control & Commercial Sentry Wing',
     division: 'Ujjain Division',
     pinCodes: '456001 - 456010',
-    phone: '+91 98262 59020',
+    phone: '+91 98262 59292',
     description: 'Event crowd control marshals, executive bouncers, commercial complex sentries, and daily janitorial personnel deployed across temples, hotels, resorts, commercial banks, and industrial corridors in Ujjain.',
     responseUnit: 'Ujjain Event & Emergency Escalation Team',
     turnaroundTime: 'On-Site Team Assessment in 3 Hours',
@@ -239,7 +240,7 @@ const primaryDistrictDirectory: Record<string, CityData> = {
     tagline: 'Northern MP Commercial Logistics & Industrial Guarding Wing',
     division: 'Chambal / Gwalior Division',
     pinCodes: '474001 - 474020',
-    phone: '+91 98262 59020',
+    phone: '+91 98262 59292',
     description: 'Disciplined security squads, armed cash van sentries, retail mall cleaning staff, and warehouse access controllers operating across industrial parks and commercial hubs in Gwalior and Malanpur.',
     responseUnit: 'Northern Zone Field Supervisory Command',
     turnaroundTime: 'Deployment Mobilized within 48 Hours',
@@ -275,7 +276,7 @@ const primaryDistrictDirectory: Record<string, CityData> = {
     tagline: 'Eastern Defense, Mining & Heavy Manufacturing Guarding Hub',
     division: 'Mahakoshal Division',
     pinCodes: '482001 - 482011',
-    phone: '+91 98262 59020',
+    phone: '+91 98262 59292',
     description: 'Heavy industrial sentries, raw material loss prevention officers, defense perimeter controllers, and facility cleaning squads serving engineering units, mining belts, and commercial hubs in Jabalpur.',
     responseUnit: 'Mahakoshal Command Field Unit',
     turnaroundTime: 'Survey & Post Plan in 24 Hours',
@@ -320,27 +321,21 @@ export function getDistrictData(slug: string): CityData | null {
   const matchedDistrict = allMpDistrictsList.find(d => formatSlug(d) === cleanSlug);
   if (!matchedDistrict) return null;
 
+  const profile = districtProfiles[cleanSlug];
+  const name = profile?.name ?? matchedDistrict;
+  const indore = primaryDistrictDirectory.indore;
+
   return {
-    name: matchedDistrict,
-    tagline: `Statutory PSARA Security & Facility Operations Wing`,
-    division: `${matchedDistrict} District Headquarters`,
-    pinCodes: `Statewide PIN Corridor (${matchedDistrict})`,
-    phone: '+91 98262 59020',
-    description: `Vidhya Security Force provides government PSARA-licensed commercial security guards, armed bank sentries, loss prevention officers, and mechanized housekeeping services across ${matchedDistrict} district, Madhya Pradesh.`,
-    responseUnit: `${matchedDistrict} Mobile Field Supervisory Squad`,
+    name,
+    tagline: profile?.highlight ?? 'PSARA Security & Facility Services',
+    division: profile?.division ?? 'Madhya Pradesh',
+    pinCodes: `${name} District`,
+    phone: '+91 98262 59292',
+    description: `${profile?.intro ?? `${name} is a district of Madhya Pradesh.`} Vidhya Security Force supplies PSARA-licensed security guards, armed sentries, bouncers and mechanized housekeeping staff for sites in ${name}, coordinated through our Indore control room.`,
+    responseUnit: 'Coordinated from Indore Control Room',
     turnaroundTime: 'Deployment Roster in 24-48 Hours',
-    districts: [
-      `${matchedDistrict} Commercial Center & Collectorate Area`,
-      `${matchedDistrict} Industrial Area & Logistics Belt`,
-      `Banking Corridors & Financial Complexes in ${matchedDistrict}`,
-      `Gated Residential Townships & Healthcare Hubs`
-    ],
-    sectors: [
-      'Commercial Complexes, Banks & Retail Centers',
-      'Warehousing, Grain Storage & Industrial Units',
-      'Hospitals, Diagnostic Centers & Educational Campuses',
-      'Residential Housing Societies & High-Rise Townships'
-    ],
+    districts: profile?.areas ?? [`${name} City`, `${name} Industrial Area`],
+    sectors: profile?.sectors ?? ['Commercial Complexes & Banks', 'Industrial Units & Warehouses', 'Hospitals & Educational Campuses', 'Residential Societies'],
     capabilities: [
       'Main Gate Access Control & Visitor Badging',
       '24/7 Foot Patrols & Night Perimeter Checks',
@@ -348,12 +343,7 @@ export function getDistrictData(slug: string): CityData | null {
       'Material Dispatch Challan Verification'
     ],
     hardwareDeployed: ['Handheld Metal Detectors (HHMD)', 'Walkie-Talkie Radios', 'Microfiber Wet/Dry Mops', 'Heavy Duty Search Torches'],
-    complianceSpecs: [
-      { label: 'PSARA License', value: 'PSA/L/74/MP/2023/FEB/3/425' },
-      { label: 'EPF Registration', value: 'MPIND1462732000' },
-      { label: 'ESIC Registration', value: '18000237700000999' },
-      { label: 'Police Verification', value: '100% Background KYC Cleared' }
-    ]
+    complianceSpecs: indore.complianceSpecs
   };
 }
 
@@ -378,7 +368,7 @@ export async function generateMetadata({ params }: { params: Promise<{ city: str
 
   return {
     title: `Best Security Guard Agency in ${data.name}, MP | PSARA Licensed VSF`,
-    description: `Hire police-verified security guards, armed gunmen, VIP bouncers & mechanized housekeeping in ${data.name}, Madhya Pradesh. 100% EPF/ESIC statutory compliance. Direct Call: +91 98262 59020.`,
+    description: `Hire PSARA-licensed security guards, armed gunmen & housekeeping staff in ${data.name}, MP. We serve ${data.sectors[0].toLowerCase()}, ${data.sectors[1].toLowerCase()} and more. EPF/ESIC compliant. Call +91 98262 59292.`,
     keywords: [
       `security services in ${data.name.toLowerCase()}`,
       `security guard agency ${data.name.toLowerCase()}`,
@@ -414,14 +404,8 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
     'name': `Vidhya Security Force & Housekeeping Services - ${currentCity.name}`,
     'description': currentCity.description,
     'url': `https://vidhyasecurityforce.in/cities/${city}`,
-    'telephone': '+919826259020',
+    'telephone': '+919826259292',
     'priceRange': '₹₹',
-    'address': {
-      '@type': 'PostalAddress',
-      'addressLocality': currentCity.name,
-      'addressRegion': 'Madhya Pradesh',
-      'addressCountry': 'IN'
-    },
     'areaServed': {
       '@type': 'City',
       'name': currentCity.name,
@@ -520,11 +504,11 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
-                href="tel:+919826259020"
+                href="tel:+919826259292"
                 className="inline-flex items-center gap-2 rounded border border-slate-200 bg-slate-50 px-5 py-3 font-heading text-xs font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100 transition-colors"
               >
                 <PhoneCall className="h-4 w-4 text-amber-600" />
-                <span>Control Room: +91 98262 59020</span>
+                <span>Control Room: +91 98262 59292</span>
               </a>
             </div>
           </div>
@@ -698,11 +682,11 @@ export default async function CitySlugPage({ params }: { params: Promise<{ city:
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
-                href="tel:+919826259020"
+                href="tel:+919826259292"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded border border-slate-700 bg-slate-800 px-5 py-3.5 font-heading text-xs font-bold uppercase tracking-wider text-white hover:bg-slate-700 transition-colors"
               >
                 <PhoneCall className="h-4 w-4 text-amber-400" />
-                <span>+91 98262 59020</span>
+                <span>+91 98262 59292</span>
               </a>
             </div>
           </section>

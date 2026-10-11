@@ -20,7 +20,7 @@ export function generateCityJsonLd(city: DistrictSchemaInput) {
         "@id": `https://vidhyasecurityforce.in/cities/${city.slug}/#service`,
         "name": `Vidhya Security Force & Housekeeping Services - ${city.name}`,
         "url": `https://vidhyasecurityforce.in/cities/${city.slug}`,
-        "telephone": "+919826259020",
+        "telephone": "+919826259292",
         "email": "vidhyasecurity@gmail.com",
         "priceRange": "₹₹",
         "image": "https://vidhyasecurityforce.in/assets/img/logo/logo.png",

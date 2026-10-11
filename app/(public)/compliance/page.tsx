@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     'PSARA training section 9 10'
   ],
   alternates: {
-    canonical: 'https://vidhyasecurity.com/compliance',
+    canonical: 'https://vidhyasecurityforce.in/compliance',
   },
 };
 
@@ -139,14 +139,14 @@ export default function PsaraCompliancePage() {
     'author': {
       '@type': 'Organization',
       'name': 'Vidhya Security Force & Housekeeping Services',
-      'url': 'https://vidhyasecurity.com'
+      'url': 'https://vidhyasecurityforce.in'
     },
     'publisher': {
       '@type': 'Organization',
       'name': 'Vidhya Security Force',
       'logo': {
         '@type': 'ImageObject',
-        'url': 'https://vidhyasecurity.com/assets/img/logo/logo.png'
+        'url': 'https://vidhyasecurityforce.in/assets/img/logo/logo.png'
       }
     }
   };

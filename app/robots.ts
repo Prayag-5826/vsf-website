@@ -6,50 +6,22 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
+        // One group for every crawler (Googlebot included), so the rules can't drift apart.
         userAgent: '*',
-        allow: [
-          '/',
-          '/cities/',
-          '/services/',
-          '/about',
-          '/contact',
-          '/_next/static/',
-          '/_next/image',
-          '/assets/',
-        ],
+        allow: ['/', '/_next/static/', '/_next/image', '/assets/'],
         disallow: [
           '/api/',
           '/_next/data/',
-          '/admin/',
           '/admin',
-          '/field/',
+          '/login',
           '/field',
           '/auth/',
           '/drafts/',
           '/preview/',
-          '/*?*', // Disallow crawling search/query parameter variations to prevent duplicate content
-        ],
-      },
-      {
-        // Dedicated directives for Googlebot & Googlebot-Image
-        userAgent: ['Googlebot', 'Googlebot-Image'],
-        allow: [
-          '/',
-          '/cities/',
-          '/services/',
-          '/assets/',
-          '/_next/image',
-          '/_next/static/media/',
-        ],
-        disallow: [
-          '/api/',
-          '/admin/',
-          '/field/',
-          '/*?*',
+          '/*?*', // skip query-string duplicates (the more specific /_next/image allow above still wins)
         ],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,
-    host: baseUrl,
   };
 }

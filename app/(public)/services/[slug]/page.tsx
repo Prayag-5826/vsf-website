@@ -1,22 +1,18 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import {
   ArrowLeft,
   ArrowUpRight,
   ShieldCheck,
   CheckCircle2,
-  Clock,
   FileCheck2,
   Building2,
   PhoneCall,
   ArrowRight,
-  Sparkles,
   BadgeCheck,
   Wrench,
-  Layers,
-  ShieldAlert,
-  HardHat
 } from 'lucide-react';
 import { Navbar } from '@/components/public/navbar';
 import Footer from '@/components/public/footer';
@@ -28,6 +24,8 @@ interface FeatureCard {
 
 interface ServiceDetail {
   title: string;
+  metaTitle: string;
+  metaDesc: string;
   category: 'Security Force' | 'Housekeeping & Facility';
   badge: string;
   code: string;
@@ -44,9 +42,192 @@ interface ServiceDetail {
 }
 
 const serviceDirectory: Record<string, ServiceDetail> = {
-  // ===================== SECURITY SERVICES =====================
+  // ===================== PRIMARY SEO MONEY PAGES =====================
+  'security-guard': {
+    title: 'Security Guard Services in Indore & MP',
+    metaTitle: 'Best Security Guard Services in Indore & MP | Vidhya Security Force',
+    metaDesc: 'Hire trained, PSARA-licensed security guards in Indore & Madhya Pradesh. 100% EPF/ESIC compliance, verified static sentries, gate control & 24/7 patrol.',
+    category: 'Security Force',
+    badge: 'Govt. PSARA Licensed &bull; Category A Guarding',
+    code: 'VSF-SEC-00',
+    image: '/assets/img/operations/commercial-entry-guard.webp',
+    imageAlt: 'Vidhya Security Force Guard in Full Uniform',
+    imagePosition: 'object-cover object-top',
+    heroDesc: 'Disciplined, police-verified security guards and sentries deployed across industrial units, corporate office parks, warehouses, and residential townships throughout Indore and all 55 districts of MP.',
+    stats: [
+      { label: 'Police KYC', value: '100% Verified' },
+      { label: 'Statutory Adherence', value: 'EPF + ESIC' },
+      { label: 'Reliever Policy', value: 'Zero Delay' },
+      { label: 'Patrol Supervision', value: 'Active QRT' },
+    ],
+    duties: [
+      'Access control, visitor register logging, identity badge checks, and barrier operation',
+      'Delivery challan matching, truck inspection, and factory material inward/outward registers',
+      'Continuous daytime surveillance and hourly nighttime security foot patrols',
+      'Immediate crisis handling, emergency fire hydrant response, and escalation procedures',
+      'Daily computerized shift attendance and guard handover reporting to site management'
+    ],
+    equipment: [
+      'Official VSF Tailored Uniform with Peak Cap',
+      'Duty Lanyard with Whistle & Heavy Sentry Baton',
+      'High-Frequency Two-Way Walkie Talkie Radios',
+      'Handheld Metal Detectors (HHMD)',
+      'High-Beam Rechargeable Search Floodlights'
+    ],
+    compliance: [
+      'PSARA MP Home Dept. Reg: PSA/L/74/MP/2023/FEB/3/425',
+      'Mandatory EPF (MPIND1462732000) & ESIC (18000237700000999)',
+      '100% Character & Police Verification Completed',
+      'Fire Safety & Emergency Evacuation Certified'
+    ],
+    industries: ['Manufacturing & Industrial SEZs', 'IT Tech Parks & Corporate Towers', 'Gated Townships & High-Rises', 'Logistics Hubs & Warehouses'],
+    keyCards: [
+      { title: 'Zero Client Liability', desc: '100% direct statutory EPF and ESIC disbursement eliminates all third-party legal risks for your company.' },
+      { title: 'Surprise Midnight Audits', desc: 'Supervisory Quick Reaction Team (QRT) field vans conduct random 2 AM – 5 AM alertness audits.' },
+      { title: 'Immediate Mobilization', desc: 'Pre-screened reserve guard squads stationed locally to ensure rapid site deployment within 24 hours.' }
+    ]
+  },
+
+  'housekeeping': {
+    title: 'Mechanized Housekeeping & Facility Services',
+    metaTitle: 'Mechanized Housekeeping & Deep Cleaning Services in Indore | VSF',
+    metaDesc: 'Professional commercial and industrial housekeeping services across Indore & MP. Ride-on floor scrubbers, daily sanitization, 5S shopfloor care & verified staff.',
+    category: 'Housekeeping & Facility',
+    badge: 'Mechanized Facility &bull; 5S Workplace Hygiene',
+    code: 'VSF-FAC-00',
+    image: '/assets/img/operations/housekeeping-floor-care.webp',
+    imageAlt: 'VSF Housekeeping Crew Cleaning Commercial Facility',
+    imagePosition: 'object-cover object-center',
+    heroDesc: 'Comprehensive commercial janitorial care and mechanized industrial floor cleaning for corporate head offices, manufacturing plant corridors, hospitals, and educational campuses.',
+    stats: [
+      { label: 'Checklist Audits', value: 'Hourly' },
+      { label: 'Chemical Grade', value: 'Taski / Diversey' },
+      { label: 'Equipment Tier', value: 'Mechanized' },
+      { label: 'Staff Verification', value: '100% Police KYC' },
+    ],
+    duties: [
+      'Continuous daily sanitation of workstations, conference halls, executive cabins, and reception lobbies',
+      'Restroom deep sanitization with automated hourly checklist physical and digital sign-offs',
+      'Heavy-duty mechanized machine scrubbing and degreasing of epoxy and industrial concrete floors',
+      'Glass facade, window partition, and high-reach fixture streak-free wiping',
+      'Color-coded cross-contamination prevention separating washroom, pantry, and desk supplies'
+    ],
+    equipment: [
+      'Heavy-Duty Walk-Behind & Ride-On Automatic Floor Scrubbers',
+      'Commercial Wet & Dry Slurry Vacuum Cleaners',
+      'Color-Coded Anti-Bacterial Microfiber Flat Mops',
+      'High-Pressure Water Jet Cleaners (200+ Bar)',
+      'Certified Eco-Safe Diversey Cleaning Formulations'
+    ],
+    compliance: [
+      'Full EPF & ESIC Monthly Remittance With Invoicing',
+      'Material Safety Data Sheet (MSDS) Chemical Handling',
+      'OSHA & Factories Act Industrial Cleaning Standards',
+      'Police Background Verification & Health Screenings'
+    ],
+    industries: ['Corporate Head Offices & IT Hubs', 'Automobile & Engineering Plants', 'Commercial Retail Malls', 'Hospitals & Healthcare Facilities'],
+    keyCards: [
+      { title: 'Restroom Hygiene Checklists', desc: 'Hourly audit sign-offs guaranteeing pristine, odor-free restrooms throughout high-footfall business hours.' },
+      { title: 'Mechanized Floor Scrubbing', desc: 'Electric scrubbers and slurry extractors that remove deep oil stains and traffic grime without damaging floor finishes.' },
+      { title: 'Corporate Turnout', desc: 'Uniformed, polite, and quiet cleaning staff trained to work around busy corporate office schedules.' }
+    ]
+  },
+
+  'armed-gunman': {
+    title: 'Licensed Armed Security Guards & Gunman Services',
+    metaTitle: 'Licensed Armed Security Guards & Gunman Services in MP | VSF',
+    metaDesc: 'Hire certified armed guards and gunman sentries in Indore & MP. Ex-servicemen with valid firearm licenses for banks, cash transit, jewelry vaults & VIPs.',
+    category: 'Security Force',
+    badge: 'Armed Defense &bull; Licensed Firearm Sentries',
+    code: 'VSF-SEC-05',
+    image: '/assets/img/operations/guard-control-cabin.webp',
+    imageAlt: 'Armed Sentry on Alert at Vault Entrance',
+    imagePosition: 'object-cover object-center',
+    heroDesc: 'Vetted armed sentries and ex-servicemen holding legally verified gun licenses, deployed for high-value asset defense, cash transit escort, bank branches, and industrial protection.',
+    stats: [
+      { label: 'Weapon License', value: 'Govt. Validated' },
+      { label: 'Personnel', value: 'Ex-Military/Police' },
+      { label: 'Firing Accuracy', value: 'Certified' },
+      { label: 'Emergency Alert', value: 'Immediate' },
+    ],
+    duties: [
+      'Static armed sentry vigilance stationed at bank vaults, cash counters, and currency transfer areas',
+      'Armed escort and standoff perimeter defense during high-value cash-in-transit movements',
+      'Perimeter defense for industrial gates storing expensive copper, metals, or hazardous materials',
+      'Close-quarter armed deterrence protecting senior corporate executives and industrialists',
+      'Liaison with local police stations during alarms, lockdowns, or armed intrusion attempts'
+    ],
+    equipment: [
+      'Legally Licensed 12-Bore / DBBL Weapons with Live Rounds',
+      'Heavy-Duty Weapon Bandolier & Security Holster',
+      'High-Frequency Encrypted Radio Comm',
+      'Ballistic Armor Vest & Hard Shell Helmet',
+      'Emergency Tactical First-Aid Kit'
+    ],
+    compliance: [
+      'Madhya Pradesh Home Department Firearm Validation',
+      'PSARA Rules on Armed Guard Deployments',
+      'Periodic Weapon Maintenance & Firing Range Certification',
+      'Full Police KYC & Character Endorsement'
+    ],
+    industries: ['Private & PSU Bank Branches', 'Jewelry Stores & Bullion Vaults', 'Cash Logistics Depots', 'High-Risk Industrial Stockyards'],
+    keyCards: [
+      { title: 'Vetted Ex-Servicemen', desc: 'Disciplined veterans with proven military or paramilitary weapons handling and combat crisis response.' },
+      { title: 'Legal Firearm Compliance', desc: 'Every deployed firearm holds up-to-date regional endorsements, preventing client legal liability.' },
+      { title: 'Active Standoff Deterrence', desc: 'Imposing armed presence that discourages criminal surveillance and robbery attempts.' }
+    ]
+  },
+
+  'bouncers': {
+    title: 'VIP Protection & Event Bouncers',
+    metaTitle: 'Professional VIP Bouncers & Event Security in Indore | VSF',
+    metaDesc: 'Hire physically imposing 6ft+ bouncers and executive security marshals in Indore & MP. Corporate conclaves, celebrity security, VIP events & crowd control.',
+    category: 'Security Force',
+    badge: 'Executive Protection &bull; Crowd Marshals',
+    code: 'VSF-SEC-03',
+    image: '/assets/img/operations/executive-bouncer-marshal.webp',
+    imageAlt: 'VIP Bouncer in Tactical Uniform',
+    imagePosition: 'object-cover object-top',
+    heroDesc: 'High-stature, trained security marshals and close-protection bodyguards for corporate conclaves, celebrity transits, stage barriers, and high-footfall public events.',
+    stats: [
+      { label: 'Height Standard', value: '6ft+ Trained' },
+      { label: 'De-escalation', value: 'SOP Certified' },
+      { label: 'Response Protocol', value: 'Instant' },
+      { label: 'Comms Network', value: 'Encrypted' },
+    ],
+    duties: [
+      'Access filtration, green room protection, and VIP stage perimeter defense',
+      'Crowd surge damping and bottleneck clearance at high-density venues',
+      'Executive escort convoy management with discreet close-protection transit',
+      'Swift, non-violent physical de-escalation of aggressive altercations and unauthorized entries',
+      'Direct liaison with local law enforcement, police stations, and venue administration'
+    ],
+    equipment: [
+      'Tactical Black Executive Uniform / Suits',
+      'Acoustic Discreet Comms Earpieces',
+      'Retractable Crowd Control Belts & Stanchions',
+      'First Aid & Emergency Trauma Evacuation Kits',
+      'High-Output Tactical Megaphones'
+    ],
+    compliance: [
+      'Police Station Event NOC & Legal Coordination',
+      'PSARA Certified Security Marshals',
+      'Medical First-Aid & Emergency Response Certified',
+      'Zero-Tolerance Drug & Alcohol Screened'
+    ],
+    industries: ['Corporate AGMs & Conclaves', 'Exhibitions & Trade Fairs', 'Celebrity & Executive Transit', 'Public Concerts & Sports Events'],
+    keyCards: [
+      { title: 'Crowd Surge Dampening', desc: 'Engineered barrier placements that keep entrances moving without dangerous blockages.' },
+      { title: 'Discreet Executive Shadow', desc: 'Close protection that preserves client privacy while neutralizing proximity threats.' },
+      { title: 'Swift Threat Isolation', desc: 'Calm and decisive non-violent containment of unruly individuals without event disruptions.' }
+    ]
+  },
+
+  // ===================== OPERATIONAL CAPABILITY DEEP-DIVES =====================
   'commercial-access-security': {
     title: 'Static & Commercial Gate Security',
+    metaTitle: 'Commercial Gate Security & Visitor Access Control Indore | VSF',
+    metaDesc: 'Manned commercial entrance security in Indore. Access control, boom barrier management, and front-desk visitor verification by Vidhya Security Force.',
     category: 'Security Force',
     badge: 'PSARA Category A &bull; Static Guarding',
     code: 'VSF-SEC-01',
@@ -90,6 +271,8 @@ const serviceDirectory: Record<string, ServiceDetail> = {
 
   'industrial-gate-material-control': {
     title: 'Industrial Gate & Material Control',
+    metaTitle: 'Industrial Gate & Material Loss Prevention Security | VSF MP',
+    metaDesc: 'Industrial security guards specialized in gatehouse challan verification, under-vehicle mirror inspection, worker frisking, and supply chain loss prevention.',
     category: 'Security Force',
     badge: 'Supply Chain Defense &bull; Inventory Gatekeeping',
     code: 'VSF-SEC-02',
@@ -133,6 +316,8 @@ const serviceDirectory: Record<string, ServiceDetail> = {
 
   'vip-bouncers-event-marshals': {
     title: 'VIP Protection & Event Bouncers',
+    metaTitle: 'VIP Protection & Event Security Bouncers Indore | VSF',
+    metaDesc: 'Elite event security marshals and VIP bouncers for private gatherings, exhibitions, and corporate conclaves in Madhya Pradesh.',
     category: 'Security Force',
     badge: 'Executive Protection &bull; Crowd Marshals',
     code: 'VSF-SEC-03',
@@ -150,7 +335,7 @@ const serviceDirectory: Record<string, ServiceDetail> = {
       'Access filtration, green room protection, and stage perimeter security',
       'Crowd movement surge damping and bottleneck clearance at large venues',
       'Executive escort convoy management with discreet close-protection transit',
-      'Swift, non-violent physical de-escalation of aggressive altercations and unauthorized backstage entries',
+      'Swift, non-violent physical de-escalation of aggressive altercations and unauthorized entries',
       'Direct liaison with local law enforcement, police stations, and venue administration'
     ],
     equipment: [
@@ -176,6 +361,8 @@ const serviceDirectory: Record<string, ServiceDetail> = {
 
   'factory-yard-perimeter-patrol': {
     title: 'Factory Yard & Night Patrol Guarding',
+    metaTitle: 'Night Patrol Security & Mobile QRT Inspection MP | VSF',
+    metaDesc: '24/7 night foot patrols, searchlight sentries, and surprise mobile QRT inspections for industrial yards and factories across Madhya Pradesh.',
     category: 'Security Force',
     badge: 'Field Command &bull; Mobile QRT Fleet',
     code: 'VSF-SEC-04',
@@ -217,9 +404,10 @@ const serviceDirectory: Record<string, ServiceDetail> = {
     ]
   },
 
-  // ===================== HOUSEKEEPING SERVICES =====================
   'corporate-office-housekeeping': {
     title: 'Corporate & Office Housekeeping',
+    metaTitle: 'Corporate Office Cleaning & Janitorial Services Indore | VSF',
+    metaDesc: 'Premium corporate office housekeeping in Indore. Daily workstation sanitization, hourly washroom deep cleaning, pantry support & certified chemicals.',
     category: 'Housekeeping & Facility',
     badge: 'Facility Management &bull; Workplace Hygiene',
     code: 'VSF-FAC-01',
@@ -263,6 +451,8 @@ const serviceDirectory: Record<string, ServiceDetail> = {
 
   'industrial-shopfloor-corridor-care': {
     title: 'Industrial & Floor Care Housekeeping',
+    metaTitle: 'Industrial Plant Housekeeping & Shopfloor Cleaning MP | VSF',
+    metaDesc: 'Heavy-duty industrial cleaning and floor care for factories in Indore & MP. 5S shopfloor standards, chemical spill management & high-pressure jet washing.',
     category: 'Housekeeping & Facility',
     badge: 'Heavy Industrial &bull; 5S Shopfloor Standards',
     code: 'VSF-FAC-02',
@@ -305,7 +495,53 @@ const serviceDirectory: Record<string, ServiceDetail> = {
   }
 };
 
-export default async function ServiceSlugPage({ params }: { params: Promise<{ slug: string }> }) {
+// 1. Static Generation for 100/100 performance & Instant Googlebot crawling
+export async function generateStaticParams() {
+  return Object.keys(serviceDirectory).map((slug) => ({ slug }));
+}
+
+// 2. High-Intent Dynamic SEO Metadata
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const service = serviceDirectory[slug];
+
+  if (!service) {
+    return { title: 'Service Not Found | Vidhya Security Force' };
+  }
+
+  return {
+    title: service.metaTitle,
+    description: service.metaDesc,
+    alternates: {
+      canonical: `https://vidhyasecurityforce.in/services/${slug}`,
+    },
+    openGraph: {
+      title: service.metaTitle,
+      description: service.metaDesc,
+      url: `https://vidhyasecurityforce.in/services/${slug}`,
+      siteName: 'Vidhya Security Force & Housekeeping Services',
+      images: [
+        {
+          url: `https://vidhyasecurityforce.in${service.image}`,
+          width: 1200,
+          height: 630,
+          alt: service.imageAlt,
+        },
+      ],
+      type: 'website',
+    },
+  };
+}
+
+export default async function ServiceSlugPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = await params;
   const service = serviceDirectory[slug];
 
@@ -315,13 +551,44 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
 
   const allServiceKeys = Object.keys(serviceDirectory);
 
+  // Structured Data (JSON-LD) for Rich Google Snippets
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    serviceType: service.title,
+    provider: {
+      '@type': 'LocalBusiness',
+      name: 'Vidhya Security Force & Housekeeping Services',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: '012, A Block, Treasure Town, Bijalpur',
+        addressLocality: 'Indore',
+        addressRegion: 'Madhya Pradesh',
+        postalCode: '452012',
+        addressCountry: 'IN',
+      },
+      telephone: '+919826259292',
+      url: 'https://vidhyasecurityforce.in',
+    },
+    areaServed: {
+      '@type': 'State',
+      name: 'Madhya Pradesh',
+    },
+    description: service.heroDesc,
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-[#0F172A] font-sans antialiased selection:bg-red-700 selection:text-white">
-      {/* 1. Global Navigation */}
+      {/* Structured Schema Script */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <Navbar />
 
       <main className="flex-1">
-        {/* 2. Top Sub-Header Context Bar */}
+        {/* Top Sub-Header Context Bar */}
         <section className="border-b border-slate-200 bg-white">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
             <Link
@@ -342,11 +609,9 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
         </section>
 
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14 space-y-12">
-
-          {/* 3. Hero Header with Photo & KPI Integration */}
+          {/* Hero Header with Photo & KPI Integration */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
               {/* Left: Tall Un-cropped Photo Frame */}
               <div className="lg:col-span-4 flex flex-col items-center">
                 <div className="relative w-full h-[360px] rounded-xl overflow-hidden bg-slate-900 border border-slate-200 shadow-inner group">
@@ -392,7 +657,10 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
                 {/* Key Metric KPI Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                   {service.stats.map((stat, idx) => (
-                    <div key={idx} className="rounded-xl bg-slate-50 p-3.5 border border-slate-100 text-center">
+                    <div
+                      key={idx}
+                      className="rounded-xl bg-slate-50 p-3.5 border border-slate-100 text-center"
+                    >
                       <div className="font-sans text-[10px] text-slate-400 uppercase tracking-tight font-semibold">
                         {stat.label}
                       </div>
@@ -421,11 +689,10 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
                   </a>
                 </div>
               </div>
-
             </div>
           </div>
 
-          {/* 4. Strategic Objectives / Feature Architecture */}
+          {/* Strategic Objectives / Feature Architecture */}
           <section className="space-y-4">
             <span className="font-heading text-xs font-bold uppercase tracking-widest text-red-700 block">
               Operational Focus
@@ -452,9 +719,8 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
             </div>
           </section>
 
-          {/* 5. Scope of Execution vs Hardware & Compliance */}
+          {/* Scope of Execution vs Hardware & Compliance */}
           <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
             {/* Left Column: Scope of Work / SOPs */}
             <div className="lg:col-span-7 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-5">
               <div>
@@ -482,7 +748,6 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
 
             {/* Right Column: Tooling & Statutory Compliance */}
             <div className="lg:col-span-5 space-y-6">
-
               {/* Issued Equipment */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-3">
                 <span className="flex items-center gap-1.5 font-heading text-xs font-bold uppercase tracking-wider text-[#0F172A] border-l-2 border-amber-600 pl-2">
@@ -491,7 +756,10 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
                 </span>
                 <ul className="space-y-2 pt-1">
                   {service.equipment.map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-2.5 font-sans text-xs text-slate-700">
+                    <li
+                      key={idx}
+                      className="flex items-center gap-2.5 font-sans text-xs text-slate-700"
+                    >
                       <CheckCircle2 className="h-4 w-4 text-amber-600 shrink-0" />
                       <span>{item}</span>
                     </li>
@@ -507,18 +775,20 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
                 </span>
                 <ul className="space-y-2 pt-1">
                   {service.compliance.map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-2.5 font-sans text-xs text-slate-700">
+                    <li
+                      key={idx}
+                      className="flex items-center gap-2.5 font-sans text-xs text-slate-700"
+                    >
                       <CheckCircle2 className="h-4 w-4 text-red-700 shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-
             </div>
           </section>
 
-          {/* 6. Primary Target Environments */}
+          {/* Primary Target Environments */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -543,7 +813,7 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
             </div>
           </section>
 
-          {/* 7. Service Directory Switcher */}
+          {/* Service Directory Switcher */}
           <nav aria-label="Other services" className="space-y-4">
             <h2 className="font-heading text-xs font-bold uppercase tracking-widest text-slate-500">
               Explore Other Capabilities
@@ -566,7 +836,7 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
             </div>
           </nav>
 
-          {/* 8. Bottom Institutional Mobilization Card */}
+          {/* Bottom Institutional Mobilization Card */}
           <section className="rounded-2xl border border-slate-800 bg-[#0F172A] p-8 sm:p-12 text-white shadow-panel flex flex-col md:flex-row md:items-center justify-between gap-8">
             <div className="max-w-2xl space-y-3">
               <span className="font-heading text-xs font-bold uppercase tracking-widest text-amber-400">
@@ -597,11 +867,9 @@ export default async function ServiceSlugPage({ params }: { params: Promise<{ sl
               </a>
             </div>
           </section>
-
         </div>
       </main>
 
-      {/* 9. Global Footer */}
       <Footer />
     </div>
   );

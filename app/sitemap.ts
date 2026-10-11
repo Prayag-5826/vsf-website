@@ -1,16 +1,19 @@
 import { MetadataRoute } from 'next';
-import districtsData from '@/data/districts.json';
+import { districtProfiles } from '@/data/district-profiles';
 
-// Complete list of all 55 districts in Madhya Pradesh
-const all55Districts = [
-  'indore', 'pithampur', 'bhopal', 'dewas', 'ujjain', 'gwalior', 'jabalpur',
-  'ratlam', 'satna', 'sagar', 'rewa', 'khandwa', 'singrauli', 'neemuch', 'katni',
-  'agar-malwa', 'alirajpur', 'anuppur', 'ashoknagar', 'balaghat', 'barwani',
-  'betul', 'bhind', 'burhanpur', 'chhatarpur', 'chhindwara', 'damoh', 'datia',
-  'dhar', 'dindori', 'guna', 'harda', 'hoshangabad', 'jhabua', 'khargone',
-  'mandla', 'mandsaur', 'morena', 'narsinghpur', 'niwari', 'panna', 'raisen',
-  'rajgarh', 'sehore', 'seoni', 'shahdol', 'shajapur', 'sheopur', 'shivpuri',
-  'sidhi', 'tikamgarh', 'umaria', 'vidisha', 'mauganj', 'pandhurna', 'maihar'
+// 7 cities with hand-written pages + every district profile in data/district-profiles.ts
+const indexableCities = Array.from(
+  new Set(['indore', 'pithampur', 'bhopal', 'dewas', 'ujjain', 'gwalior', 'jabalpur', ...Object.keys(districtProfiles)])
+);
+
+// Only the pages linked from /services. The other 4 slugs redirect (see next.config.ts).
+const serviceSlugs = [
+  'security-guard',
+  'armed-gunman',
+  'housekeeping',
+  'bouncers',
+  'industrial-gate-material-control',
+  'factory-yard-perimeter-patrol',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -38,30 +41,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/services/security-guard`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/services/armed-gunman`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/services/housekeeping`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/services/bouncers`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
       url: `${baseUrl}/about`,
       lastModified: currentDate,
       changeFrequency: 'monthly',
@@ -75,12 +54,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
+  const serviceRoutes: MetadataRoute.Sitemap = serviceSlugs.map((slug, i) => ({
+    url: `${baseUrl}/services/${slug}`,
+    lastModified: currentDate,
+    changeFrequency: 'monthly',
+    priority: i < 3 ? 0.9 : 0.8,
+  }));
+
   // 2. Programmatic Districts & Corridor URLs
-  const jsonSlugs = districtsData.map((d: { slug: string }) => d.slug.toLowerCase());
-  const combinedSlugs = Array.from(new Set([...jsonSlugs, ...all55Districts]));
+  const combinedSlugs = indexableCities;
 
   const cityRoutes: MetadataRoute.Sitemap = combinedSlugs.map((slug) => {
-    const isMajorHub = ['indore', 'pithampur', 'bhopal', 'dewas', 'gwalior', 'jabalpur'].includes(slug);
+    const isMajorHub = ['indore', 'pithampur', 'bhopal'].includes(slug);
 
     return {
       url: `${baseUrl}/cities/${slug}`,
@@ -90,5 +75,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     };
   });
 
-  return [...staticRoutes, ...cityRoutes];
+  return [...staticRoutes, ...serviceRoutes, ...cityRoutes];
 }

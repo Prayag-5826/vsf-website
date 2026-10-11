@@ -253,11 +253,11 @@ export default function AboutPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
-                href="tel:+919826259020"
+                href="tel:+919826259292"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded border border-slate-700 bg-slate-800 px-5 py-3.5 font-heading text-xs font-bold uppercase tracking-wider text-white hover:bg-slate-700 transition-colors"
               >
                 <PhoneCall className="h-4 w-4 text-amber-400" />
-                <span>+91 98262 59020</span>
+                <span>+91 98262 59292</span>
               </a>
             </div>
           </section>

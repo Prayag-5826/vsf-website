@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: 'Terms of Service | Vidhya Security Force & Housekeeping Services',
   description: 'Standard operating terms, deployment parameters, statutory labor compliance rules, and payment schedules for security guarding and facility management services across Madhya Pradesh.',
   alternates: {
-    canonical: 'https://vidhyasecurity.com/terms',
+    canonical: 'https://vidhyasecurityforce.in/terms',
   },
 };
 

@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: 'Privacy Policy | Vidhya Security Force & Housekeeping Services',
   description: 'Learn how Vidhya Security Force collects, protects, and handles client data, site deployment parameters, and statutory records in full compliance with Indian data regulations.',
   alternates: {
-    canonical: 'https://vidhyasecurity.com/privacy',
+    canonical: 'https://vidhyasecurityforce.in/privacy',
   },
 };
 
