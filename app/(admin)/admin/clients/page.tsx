@@ -35,7 +35,8 @@ import {
   ChevronRight,
   ClipboardList,
   Sparkles,
-  UserCheck2
+  Camera,
+  ExternalLink
 } from 'lucide-react';
 import { getSupabase } from '@/lib/supabaseBrowser';
 
@@ -113,6 +114,20 @@ interface MonthlyAttendanceRecord {
   updated_at: string;
 }
 
+interface AuditPhotoRecord {
+  id: string;
+  client_name: string;
+  premise_type: string;
+  tag_key: string;
+  tag_label: string;
+  photo_url: string;
+  file_path: string;
+  latitude: number | null;
+  longitude: number | null;
+  captured_by: string;
+  captured_at: string;
+}
+
 const esc = (value: unknown): string =>
   String(value ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string)
@@ -126,22 +141,25 @@ export default function ClientsPage() {
   const [fieldVisitsList, setFieldVisitsList] = useState<ClientRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // View Filter: Default to 'CLIENTS' so only approved contract clients appear
+  // View Filter: Default to 'CLIENTS'
   const [directoryView, setDirectoryView] = useState<'CLIENTS' | 'VISITS'>('CLIENTS');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE' | 'TERMINATED'>('ALL');
 
   // Selected client folder modal
   const [selectedClient, setSelectedClient] = useState<ClientRecord | null>(null);
-  const [activeFolderTab, setActiveFolderTab] = useState<'BILLS' | 'FILES' | 'PROPOSALS' | 'SURVEYS' | 'STATUTORY'>('BILLS');
+  const [activeFolderTab, setActiveFolderTab] = useState<'BILLS' | 'AUDIT_PHOTOS' | 'FILES' | 'PROPOSALS' | 'SURVEYS' | 'STATUTORY'>('BILLS');
   const [clientBills, setClientBills] = useState<ClientBill[]>([]);
   const [clientVisits, setClientVisits] = useState<ClientVisit[]>([]);
   const [clientProposals, setClientProposals] = useState<ClientProposal[]>([]);
   const [clientFiles, setClientFiles] = useState<ClientVaultFile[]>([]);
   const [clientAttendances, setClientAttendances] = useState<MonthlyAttendanceRecord[]>([]);
+  const [clientAuditPhotos, setClientAuditPhotos] = useState<AuditPhotoRecord[]>([]);
   const [openMonthFolders, setOpenMonthFolders] = useState<Record<string, boolean>>({});
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
+  const [generatingAuditPdf, setGeneratingAuditPdf] = useState(false);
+  const [previewAuditPhoto, setPreviewAuditPhoto] = useState<AuditPhotoRecord | null>(null);
 
   // File Upload State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -180,16 +198,13 @@ export default function ClientsPage() {
       supabase.from('visits').select('*').order('timestamp', { ascending: false }).limit(100)
     ]);
 
-    // 1. Approved Master Clients
     const registered: ClientRecord[] = (clientsRes.data || []).map((c: any) => ({
       ...c,
       status: c.status || 'ACTIVE'
     }));
 
-    // Registered client set to prevent duplicates in visits
     const registeredNames = new Set(registered.map((c) => c.company_name.trim().toLowerCase()));
 
-    // 2. Raw Field Visits (Unapproved prospect locations)
     const rawVisits: ClientRecord[] = [];
     const seenVisitNames = new Set<string>();
 
@@ -233,7 +248,6 @@ export default function ClientsPage() {
     loadClients();
   }, [loadClients]);
 
-  // Promote a Visit lead to an official Approved Client
   const handlePromoteToClient = async (visitLead: ClientRecord, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm(`Promote "${visitLead.company_name}" to an official Approved Contract Client?`)) return;
@@ -270,34 +284,45 @@ export default function ClientsPage() {
     setLoadingDetails(true);
 
     try {
-      const [billsRes, visitsRes, proposalsRes, filesRes, attendanceRes] = await Promise.all([
+      const cleanName = client.company_name.trim();
+
+      const nameWithUnderscores = cleanName.replace(/\s+/g, '_');
+      const nameWithSpaces = cleanName.replace(/_/g, ' ');
+
+      const [billsRes, visitsRes, proposalsRes, filesRes, attendanceRes, auditPhotosRes] = await Promise.all([
         supabase
           .from('bills')
           .select('*')
-          .ilike('client_name', `%${client.company_name.trim()}%`)
+          .ilike('client_name', `%${cleanName}%`)
           .order('bill_date', { ascending: false }),
         supabase
           .from('visits')
           .select('*')
-          .ilike('company_name', `%${client.company_name.trim()}%`)
+          .ilike('company_name', `%${cleanName}%`)
           .order('timestamp', { ascending: false })
           .limit(25),
         supabase
           .from('proposals')
           .select('id, client_name, total_amount, status, created_at')
-          .ilike('client_name', `%${client.company_name.trim()}%`)
+          .ilike('client_name', `%${cleanName}%`)
           .order('created_at', { ascending: false })
           .limit(20),
         supabase
           .from('client_documents')
           .select('*')
-          .or(`client_name.ilike.%${client.company_name.trim()}%,client_id.eq.${client.id}`)
+          .or(`client_name.ilike.%${cleanName}%,client_id.eq.${client.id}`)
           .order('uploaded_at', { ascending: false }),
         supabase
           .from('monthly_attendance')
           .select('*')
-          .or(`unit_name.ilike.%${client.company_name.trim()}%,client_id.eq.${client.id}`)
-          .order('year', { ascending: false })
+          .or(`unit_name.ilike.%${cleanName}%,client_id.eq.${client.id}`)
+          .order('year', { ascending: false }),
+        supabase
+          .from('site_visit_photos')
+          .select('*')
+          .or(`client_name.ilike.%${nameWithSpaces}%,client_name.ilike.%${nameWithUnderscores}%`)
+          .order('captured_at', { ascending: false })
+          .limit(60)
       ]);
 
       setClientBills((billsRes.data as ClientBill[]) || []);
@@ -305,11 +330,274 @@ export default function ClientsPage() {
       setClientProposals((proposalsRes.data as ClientProposal[]) || []);
       setClientFiles((filesRes.data as ClientVaultFile[]) || []);
       setClientAttendances((attendanceRes.data as MonthlyAttendanceRecord[]) || []);
+      setClientAuditPhotos((auditPhotosRes.data as AuditPhotoRecord[]) || []);
+
+      // Auto-open first month folder if present
       setOpenMonthFolders({});
     } catch (err) {
       console.error('Failed to load client dossier', err);
     } finally {
       setLoadingDetails(false);
+    }
+  };
+
+  // Printable Muster PDF Trigger
+  const handlePrintMusterRoll = async (att: MonthlyAttendanceRecord) => {
+    const printUrl = `/admin/attendance?unit=${encodeURIComponent(att.unit_name)}&month=${att.month}&year=${att.year}&autoPrint=true`;
+    window.open(printUrl, '_blank');
+  };
+
+  // 1-Click Executive "Site Audit Dossier" PDF Engine
+  const handlePrintAuditDossierPdf = async () => {
+    if (!selectedClient) return;
+    setGeneratingAuditPdf(true);
+
+    try {
+      const { data: settingsData } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
+      const companyData = settingsData || {};
+
+      const companyName = esc(companyData.company_name || 'VIDHYA SECURITY FORCE & HOUSEKEEPING SERVICES');
+      const companyAddress = esc(companyData.address || '012 A BLOCK TREASURE TOWN INDORE, MP');
+      const companyPhone = esc(companyData.contact_no || companyData.contact_number || companyData.phone || '9826259020');
+      const companyEmail = esc(companyData.email || 'contact@vidhyasecurityforce.in');
+      const psaraLicense = esc(companyData.psara_license || 'PSA/L/74/MP/2023/FEB/3/425');
+      const directorName = esc(companyData.director_name || 'Anil Dhariwal');
+      const sealImage = companyData.seal_image || '';
+      const logoUrl = companyData.logo || '/assets/img/logo/logo.png';
+
+      const docketRef = `VSF-AUDIT-${selectedClient.id.replace(/\D/g, '') || Date.now().toString().slice(-4)}`;
+      const reportDate = new Date().toLocaleDateString('en-GB');
+
+      const photosHtml = clientAuditPhotos.length === 0
+        ? `<div style="padding: 30px; text-align: center; color: #64748b; font-size: 12px; border: 1px dashed #cbd5e1; border-radius: 8px;">
+             No photographic inspection evidence logged yet for this client.
+           </div>`
+        : clientAuditPhotos.map((photo, index) => {
+          const time = new Date(photo.captured_at).toLocaleString('en-IN');
+          const gps = photo.latitude && photo.longitude
+            ? `${photo.latitude.toFixed(5)}, ${photo.longitude.toFixed(5)}`
+            : 'GPS Logged On-Site';
+
+          return `
+            <div style="border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #ffffff; break-inside: avoid; page-break-inside: avoid; margin-bottom: 12px;">
+             <div style="min-height: 210px; max-height: 230px; background: #0b1120; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: 6px 6px 0 0;">
+  <img
+    src="${photo.photo_url}"
+    alt="${esc(photo.tag_label)}"
+    style="max-width: 100%; max-height: 225px; width: auto; height: auto; object-fit: contain; display: block; margin: auto;"
+  />
+                <div style="position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,0.75); color: #ffffff; font-size: 8.5px; font-weight: bold; padding: 2px 6px; border-radius: 4px; font-family: monospace;">
+                  ${esc(photo.premise_type)}
+                </div>
+                <div style="position: absolute; bottom: 6px; left: 6px; right: 6px; background: rgba(15,23,42,0.85); color: #ffffff; font-size: 8px; font-family: monospace; padding: 4px 6px; border-radius: 4px; line-height: 1.3;">
+                  <strong style="color: #fde047; text-transform: uppercase;">${esc(photo.tag_label)}</strong><br/>
+                  By: ${esc(photo.captured_by)} | ${esc(time)} | GPS: ${gps}
+                </div>
+              </div>
+              <div style="padding: 6px 8px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 10px; display: flex; justify-content: space-between;">
+                <span style="font-weight: bold; color: #1e293b; text-transform: uppercase;">Point #${index + 1}: ${esc(photo.tag_label)}</span>
+                <span style="color: #991b1b; font-weight: bold; font-family: monospace;">VERIFIED</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      const dossierHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Site Audit Dossier - ${esc(selectedClient.company_name)}</title>
+            <style>
+              @page { size: A4 portrait; margin: 12mm 14mm; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+                color: #0f172a;
+                margin: 0;
+                padding: 0;
+                background: #ffffff;
+                line-height: 1.45;
+              }
+              .header-table {
+                width: 100%;
+                border-collapse: collapse;
+                border-bottom: 2.5px solid #7f1d1d;
+                padding-bottom: 10px;
+                margin-bottom: 12px;
+              }
+              .tag {
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                color: #991b1b;
+                padding: 2.5px 7px;
+                font-size: 9px;
+                font-weight: 900;
+                border-radius: 4px;
+                text-transform: uppercase;
+                font-family: monospace;
+              }
+              .client-strip {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 10px 14px;
+                margin-bottom: 14px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              }
+              .meta-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 8px;
+                margin-bottom: 16px;
+              }
+              .meta-card {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                padding: 8px;
+                text-align: center;
+              }
+              .photo-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+              }
+              .footer {
+                margin-top: 24px;
+                padding-top: 12px;
+                border-top: 1.5px solid #e2e8f0;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                break-inside: avoid;
+                page-break-inside: avoid;
+              }
+            </style>
+          </head>
+          <body>
+            <table class="header-table">
+              <tr>
+                <td style="width: 25%; vertical-align: middle;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <img src="${logoUrl}" alt="VSF" style="width: 52px; height: 52px; object-fit: contain;" onerror="this.style.display='none'"/>
+                    <div>
+                      <div style="color: #991b1b; font-weight: 900; font-size: 9.5px; letter-spacing: 0.8px; font-family: monospace;">PROTECTION • SURVEILLANCE</div>
+                      <div style="font-size: 13px; font-weight: 900; color: #020617;">संरक्षण एवं सुरक्षा</div>
+                      <div style="font-size: 8.5px; font-family: monospace; color: #64748b;">HQ: +91 ${companyPhone}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="text-align: center; vertical-align: middle; padding: 0 8px;">
+                  <div style="font-size: 14.5px; font-weight: 900; text-transform: uppercase; color: #020617;">${companyName}</div>
+                  <div style="font-size: 9px; font-weight: bold; color: #475569; text-transform: uppercase; margin-top: 1px;">HEAD OFFICE: ${companyAddress}</div>
+                  <div style="font-size: 8.5px; font-family: monospace; color: #64748b;">E: ${companyEmail} &bull; Web: vidhyasecurityforce.in</div>
+                </td>
+                <td style="width: 25%; text-align: right; vertical-align: middle;">
+                  <span class="tag">PSARA MP LICENSED</span>
+                  <div style="font-size: 9px; font-family: monospace; font-weight: bold; color: #334155; margin-top: 3px;">LIC: ${psaraLicense}</div>
+                </td>
+              </tr>
+            </table>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+              <div>
+                <span style="font-size: 13px; font-weight: 900; text-transform: uppercase; color: #7f1d1d; letter-spacing: 0.5px;">
+                  EXECUTIVE PHYSICAL SITE INSPECTION &amp; AUDIT DOSSIER
+                </span>
+              </div>
+              <div style="font-family: monospace; font-size: 10.5px; text-align: right;">
+                <span style="color: #64748b;">REF: </span><strong>${esc(docketRef)}</strong> &bull;
+                <span style="color: #64748b;">DATE: </span><strong>${esc(reportDate)}</strong>
+              </div>
+            </div>
+
+            <div class="client-strip">
+              <div>
+                <span style="font-size: 8.5px; font-family: monospace; font-weight: 900; text-transform: uppercase; color: #64748b; display: block;">AUDITED ESTABLISHMENT</span>
+                <span style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">${esc(selectedClient.company_name)}</span>
+                <span style="font-size: 10.5px; color: #475569; display: block; margin-top: 2px;">
+                  Location: ${esc(selectedClient.billing_address || 'Premises Registered with HQ')}
+                </span>
+              </div>
+              <div style="text-align: right; font-family: monospace; font-size: 10px;">
+                <span style="display: block; color: #64748b;">STATUS: <strong style="color: #15803d;">CONTRACT ACTIVE</strong></span>
+                <span style="display: block; color: #64748b;">TOTAL POINTS: <strong>${clientAuditPhotos.length} VERIFIED</strong></span>
+              </div>
+            </div>
+
+            <div class="meta-grid">
+              <div class="meta-card">
+                <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase; display: block;">Inspections Logged</span>
+                <span style="font-size: 16px; font-weight: 900; color: #020617; font-family: monospace;">${clientAuditPhotos.length}</span>
+              </div>
+              <div class="meta-card">
+                <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase; display: block;">Surveillance Mode</span>
+                <span style="font-size: 11px; font-weight: 900; color: #020617; font-family: monospace;">GEOTAGGED GPS</span>
+              </div>
+              <div class="meta-card">
+                <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase; display: block;">Audit Standard</span>
+                <span style="font-size: 11px; font-weight: 900; color: #7f1d1d; font-family: monospace;">PSARA COMPLIANT</span>
+              </div>
+              <div class="meta-card">
+                <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase; display: block;">Last Inspected</span>
+                <span style="font-size: 11px; font-weight: 900; color: #020617; font-family: monospace;">
+                  ${clientAuditPhotos[0] ? new Date(clientAuditPhotos[0].captured_at).toLocaleDateString('en-GB') : 'CURRENT'}
+                </span>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 8px;">
+              <span style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #1e293b; letter-spacing: 0.5px; display: block; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 10px;">
+                Photographic Audit Evidence &amp; Premise Telemetry
+              </span>
+              <div class="photo-grid">
+                ${photosHtml}
+              </div>
+            </div>
+
+            <div class="footer">
+              <div style="font-size: 9px; font-family: monospace; color: #64748b;">
+                <div style="font-weight: bold; color: #0f172a; font-size: 9.5px;">${companyName}</div>
+                <div style="color: #991b1b; font-weight: bold; text-transform: uppercase;">Official Field Inspection &amp; Guard Turnout Report</div>
+                <div>Automated HQ Dossier Docket Ref: ${esc(docketRef)}</div>
+              </div>
+              <div style="text-align: center; width: 220px;">
+                <div style="font-size: 9px; font-weight: bold; text-transform: uppercase; color: #475569; margin-bottom: 2px;">Authorized Field Inspector</div>
+                <div style="height: 56px; display: flex; align-items: center; justify-content: center;">
+                  ${sealImage ? `
+                    <img src="${sealImage}" alt="Official Seal" style="max-height: 54px; max-width: 100%; object-fit: contain;"/>
+                  ` : `
+                    <div style="border: 1px dashed #fca5a5; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 8.5px; color: #991b1b;">[ OFFICIAL SEAL ]</div>
+                  `}
+                </div>
+                <div style="border-top: 1.5px solid #0f172a; padding-top: 2px;">
+                  <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #020617;">${directorName}</div>
+                  <div style="font-size: 9px; font-family: monospace; font-weight: bold; color: #991b1b; text-transform: uppercase;">Managing Director / Field Admin</div>
+                </div>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+      frame.onload = () => {
+        setTimeout(() => {
+          frame.contentWindow?.focus();
+          frame.contentWindow?.print();
+          setTimeout(() => frame.remove(), 2500);
+        }, 350);
+      };
+      frame.srcdoc = dossierHtml;
+      document.body.appendChild(frame);
+    } catch (err: any) {
+      console.error('Audit PDF error:', err);
+      alert(`Could not generate audit dossier: ${err.message || 'Error creating document'}`);
+    } finally {
+      setGeneratingAuditPdf(false);
     }
   };
 
@@ -378,293 +666,30 @@ export default function ClientsPage() {
     }
   };
 
-  // Dedicated Actual Downloader: Handles both Survey Transmittal Letters & Binary Files
+  // Direct Downloader: Handles PDFs, Images and skips raw JSON dumps
   const handleDownloadVaultFile = async (doc: ClientVaultFile) => {
     setDownloadingDocId(doc.id);
-
     try {
-      // 1. If it's a Survey Transmittal Cover Letter or internal quotation reference
-      if (doc.file_type === 'SURVEY_LETTER' || doc.file_url.startsWith('/admin/quotations')) {
-        // Fetch matching proposal data and official company settings in parallel
-        const [propRes, settingsRes] = await Promise.all([
-          supabase
-            .from('proposals')
-            .select('*')
-            .ilike('client_name', `%${doc.client_name.trim()}%`)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase.from('settings').select('*').eq('id', 1).maybeSingle()
-        ]);
-
-        const propData = propRes.data;
-        const companyData = settingsRes.data || {};
-
-        const companyName = esc(companyData.company_name || 'VIDHYA SECURITY FORCE & HOUSEKEEPING SERVICES');
-        const companyAddress = esc(companyData.address || '012 A BLOCK TREASURE TOWN INDORE, MP');
-        const companyPhone = esc(companyData.contact_no || companyData.contact_number || companyData.phone || '9826259020');
-        const companyEmail = esc(companyData.email || 'contact@vidhyasecurityforce.in');
-        const psaraLicense = esc(companyData.psara_license || 'PSA/L/74/MP/2023/FEB/3/425');
-        const directorName = esc(companyData.director_name || 'Anil Dhariwal');
-        const sealImage = companyData.seal_image || '';
-        const logoUrl = companyData.logo || '/assets/img/logo/logo.png';
-
-        const refNo = propData?.id ? `VSF/INSP/${propData.id.replace(/\D/g, '') || '2026'}` : 'VSF/INSP/2026';
-        const clientTitle = esc(propData?.client_name || doc.client_name);
-        const clientAddr = esc(propData?.client_address || selectedClient?.billing_address || 'Institution Premises, Madhya Pradesh');
-        const contact = esc(propData?.contact_person || selectedClient?.contact_person || '');
-        const phone = esc(propData?.client_phone || selectedClient?.phone || '');
-        const issueDate = propData?.created_at ? new Date(propData.created_at).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB');
-
-        // Render exact post items from stored service_items
-        const itemsHtml = (propData?.service_items || [])
-          .map(
-            (s: any) =>
-              `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;font-family:monospace;font-size:11.5px;">
-                <span style="font-weight:bold;text-transform:uppercase;color:#1e293b;">${esc(s.label)} (${s.shift === '12_HOURS' ? '12-Hour Shift' : '08-Hour Shift'})</span>
-                <span style="color:#991b1b;font-weight:900;">${s.count} Post${s.count > 1 ? 's' : ''}</span>
-              </div>`
-          )
-          .join('');
-
-        const letterHtml = `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <title>Survey Letter - ${clientTitle}</title>
-              <style>
-                @page { size: A4 portrait; margin: 12mm 15mm; }
-                body {
-                  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
-                  color: #0f172a;
-                  margin: 0;
-                  padding: 0;
-                  background: #ffffff;
-                  line-height: 1.6;
-                }
-                .sheet {
-                  width: 100%;
-                  box-sizing: border-box;
-                  display: flex;
-                  flex-direction: column;
-                  justify-content: space-between;
-                  min-height: 270mm;
-                }
-                .header-table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  border-bottom: 2px solid #7f1d1d;
-                  padding-bottom: 12px;
-                  margin-bottom: 14px;
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                }
-                .tag {
-                  background: #fef2f2;
-                  border: 1px solid #fecaca;
-                  color: #991b1b;
-                  padding: 3px 8px;
-                  font-size: 9.5px;
-                  font-weight: bold;
-                  border-radius: 4px;
-                  text-transform: uppercase;
-                  font-family: monospace;
-                  display: inline-block;
-                }
-                .ref-bar {
-                  display: flex;
-                  justify-content: space-between;
-                  font-family: monospace;
-                  font-size: 11px;
-                  border-bottom: 1px solid #e2e8f0;
-                  padding-bottom: 6px;
-                  margin-bottom: 14px;
-                }
-                .client-box {
-                  background: #FAF9F5;
-                  border: 1px solid #e2e8f0;
-                  border-radius: 10px;
-                  padding: 12px 14px;
-                  margin-bottom: 14px;
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                }
-                .subj-box {
-                  background: #fef2f2;
-                  border: 1px solid #fecaca;
-                  border-radius: 8px;
-                  padding: 10px 12px;
-                  font-size: 12px;
-                  font-weight: bold;
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                  color: #0f172a;
-                  margin-bottom: 16px;
-                }
-                .body-text p {
-                  font-size: 13.5px;
-                  line-height: 1.65;
-                  margin: 0 0 12px 0;
-                  text-align: justify;
-                }
-                .schedule-box {
-                  border: 1px solid #991b1b;
-                  background: #fef2f2;
-                  border-radius: 10px;
-                  padding: 10px 14px;
-                  margin-bottom: 14px;
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                }
-                .post-grid {
-                  display: grid;
-                  grid-template-columns: 1fr 1fr;
-                  gap: 8px;
-                  margin-top: 6px;
-                  margin-bottom: 14px;
-                }
-                .footer {
-                  border-top: 1px solid #e2e8f0;
-                  padding-top: 10px;
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: flex-end;
-                  margin-top: auto;
-                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="sheet">
-                <div>
-                  <!-- Letterhead -->
-                  <table class="header-table">
-                    <tr>
-                      <td style="width: 25%; vertical-align: middle;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                          <img src="${logoUrl}" alt="VSF Logo" style="width: 58px; height: 58px; object-fit: contain;" onerror="this.style.display='none'"/>
-                          <div style="line-height: 1.2;">
-                            <div style="color: #991b1b; font-weight: 900; font-size: 10px; letter-spacing: 1px; font-family: monospace;">PROTECTION • SECURITY</div>
-                            <div style="font-size: 13.5px; font-weight: 900; color: #020617;">संरक्षण एवं सुरक्षा</div>
-                            <div style="font-size: 9px; font-family: monospace; color: #64748b; margin-top: 2px;">24/7 HELPLINE: +91 9826259020</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style="text-align: center; vertical-align: middle; padding: 0 10px;">
-                        <div style="font-size: 16px; font-weight: 900; text-transform: uppercase; color: #020617; line-height: 1.2;">${companyName}</div>
-                        <div style="font-size: 9.5px; font-weight: bold; color: #334155; margin-top: 2px; text-transform: uppercase;">HEAD OFFICE: ${companyAddress}</div>
-                        <div style="font-size: 9px; font-family: monospace; color: #475569;">Phone: ${companyPhone} • Email: ${companyEmail}</div>
-                      </td>
-                      <td style="width: 25%; text-align: right; vertical-align: middle;">
-                        <span class="tag">PSARA MP LICENSED</span>
-                        <div style="font-size: 9.5px; font-family: monospace; font-weight: bold; color: #334155; margin-top: 4px;">LIC: ${psaraLicense}</div>
-                      </td>
-                    </tr>
-                  </table>
-
-                  <!-- Reference Bar -->
-                  <div class="ref-bar">
-                    <div><span style="color: #64748b;">DISPATCH REF: </span><strong style="color: #7f1d1d; font-weight: 900;">${esc(refNo)}</strong></div>
-                    <div><span style="color: #64748b;">DATE: </span><strong>${esc(issueDate)}</strong></div>
-                  </div>
-
-                  <!-- Client Block -->
-                  <div class="client-box">
-                    <div style="font-size: 9.5px; font-family: monospace; font-weight: bold; color: #64748b; text-transform: uppercase;">To,</div>
-                    <div style="font-size: 15px; font-weight: 900; text-transform: uppercase; color: #020617; margin: 2px 0;">The Management / Administration Authority</div>
-                    <div style="font-size: 13.5px; font-weight: bold; color: #1e293b; text-transform: uppercase;">${clientTitle}</div>
-                    <div style="font-size: 11.5px; color: #334155; margin-top: 3px;">
-                      ${contact ? `<div><strong>Kind Attention:</strong> ${contact}${phone ? `(Ph: +91 ${phone})` : ''}</div>` : ''}
-                      <div><strong>Campus Location:</strong> ${clientAddr}</div>
-                    </div>
-                  </div>
-
-                  <!-- Subject -->
-                  <div class="subj-box">
-                    <span style="color: #7f1d1d; text-transform: uppercase;">Subject:</span> Prior Intimation for Scheduled Campus Inspection &amp; Premises Assessment Visit.
-                  </div>
-
-                  <!-- Letter Body -->
-                  <div class="body-text">
-                    <p><strong>Dear Sir / Madam,</strong></p>
-                    <p>Greetings from <strong>${companyName}</strong>.</p>
-                    <p>With reference to our ongoing communication, this is to confirm our upcoming visit to your campus for conducting an on-site physical security inspection and operational assessment:</p>
-
-                    <!-- Schedule Box -->
-                    <div class="schedule-box">
-                      <div style="display: flex; justify-content: space-between; font-family: monospace; font-size: 12.5px;">
-                        <div>
-                          <span style="color: #64748b; font-size: 9.5px; font-weight: bold; text-transform: uppercase; display: block;">Proposed Date of Visit</span>
-                          <strong style="color: #020617; font-size: 13.5px;">${esc(issueDate)}</strong>
-                        </div>
-                        <div>
-                          <span style="color: #64748b; font-size: 9.5px; font-weight: bold; text-transform: uppercase; display: block;">Designated Time Window</span>
-                          <strong style="color: #7f1d1d; font-size: 13.5px;">11:00 AM – 01:30 PM (Standard)</strong>
-                        </div>
-                      </div>
-                    </div>
-
-                    ${itemsHtml ? `
-                      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                        <span style="font-size: 10px; font-family: monospace; font-weight: 900; text-transform: uppercase; color: #334155; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Manpower Deployment Under Review:</span>
-                        <div class="post-grid">${itemsHtml}</div>
-                      </div>
-                    ` : ''}
-
-                    <p>We look forward to meeting with your administrative team on the scheduled date to review the requirements and finalize our operational recommendations.</p>
-                    <p style="margin-top: 14px;">Thanking you,<br/><strong>Yours faithfully,</strong></p>
-                  </div>
-                </div>
-
-                <!-- Footer Signatory Block -->
-                <div class="footer">
-                  <div style="font-size: 9.5px; font-family: monospace; color: #64748b;">
-                    <div style="font-weight: bold; color: #0f172a; font-size: 10px;">${companyName}</div>
-                    <div style="color: #991b1b; font-weight: bold; text-transform: uppercase;">Govt. of Madhya Pradesh PSARA Licensed • Central HQ</div>
-                    <div>Dispatch Docket Ref: ${esc(refNo)}</div>
-                  </div>
-                  <div style="text-align: center; width: 230px;">
-                    <div style="font-size: 9.5px; font-weight: bold; text-transform: uppercase; color: #475569; margin-bottom: 2px;">For ${companyName}</div>
-                    <div style="height: 72px; display: flex; align-items: center; justify-content: center; margin: 2px 0;">
-                      ${sealImage ? `
-                        <img src="${sealImage}" alt="Official Seal" style="max-height: 70px; max-width: 100%; object-fit: contain;"/>
-                      ` : `
-                        <div style="border: 1px dashed #fca5a5; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-size: 9px; color: #991b1b; text-transform: uppercase;">[ OFFICIAL SEAL ]</div>
-                      `}
-                    </div>
-                    <div style="border-top: 2px solid #0f172a; padding-top: 2px;">
-                      <div style="font-size: 12px; font-weight: 900; text-transform: uppercase; color: #020617;">${directorName}</div>
-                      <div style="font-size: 9.5px; font-family: monospace; font-weight: bold; color: #991b1b; text-transform: uppercase;">Managing Director</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </body>
-          </html>
-        `;
-
-        const frame = document.createElement('iframe');
-        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
-        frame.onload = () => {
-          setTimeout(() => {
-            frame.contentWindow?.focus();
-            frame.contentWindow?.print();
-            setTimeout(() => frame.remove(), 2500);
-          }, 300);
-        };
-        frame.srcdoc = letterHtml;
-        document.body.appendChild(frame);
-      } else {
-        // 2. Binary file in Supabase Storage - direct blob download
-        const res = await fetch(doc.file_url);
-        if (!res.ok) throw new Error('Could not download file from storage.');
-        const blob = await res.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = doc.file_name || `${doc.doc_title}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
+      // If someone clicks on an attendance muster file inside documents, trigger printable muster
+      if (doc.doc_category === 'ATTENDANCE_MUSTER' || doc.file_name?.endsWith('.json')) {
+        const matchingAtt = clientAttendances.find((a) => doc.doc_title.includes(a.month));
+        if (matchingAtt) {
+          handlePrintMusterRoll(matchingAtt);
+          return;
+        }
       }
+
+      const res = await fetch(doc.file_url);
+      if (!res.ok) throw new Error('Could not download file from storage.');
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = doc.file_name || `${doc.doc_title}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
       console.error('Download error:', err);
       window.open(doc.file_url, '_blank');
@@ -761,23 +786,24 @@ export default function ClientsPage() {
     }
   };
 
-  // Group Bills and Attendance into Monthly Folders
+  // Group Bills and Attendance into structured Monthly Folders
   const monthlyFoldersData = useMemo(() => {
     const map = new Map<string, { monthKey: string; bills: ClientBill[]; attendances: MonthlyAttendanceRecord[] }>();
 
-    const getFolderKey = (monthStr: string, yearVal?: number | string) => {
-      const clean = (monthStr || 'General').toUpperCase().trim();
-      return yearVal ? `${clean}-${yearVal}` : clean;
+    const normalizeMonth = (val: string) => {
+      if (!val) return 'CURRENT';
+      // Match 2026-10 or OCT-2026 format cleanly
+      return val.trim().toUpperCase();
     };
 
     clientBills.forEach((b) => {
-      const key = getFolderKey(b.bill_month || 'General');
+      const key = normalizeMonth(b.bill_month || 'GENERAL');
       if (!map.has(key)) map.set(key, { monthKey: key, bills: [], attendances: [] });
       map.get(key)!.bills.push(b);
     });
 
     clientAttendances.forEach((att) => {
-      const key = getFolderKey(att.month, att.year);
+      const key = `${att.month.toUpperCase()}-${att.year}`;
       if (!map.has(key)) map.set(key, { monthKey: key, bills: [], attendances: [] });
       map.get(key)!.attendances.push(att);
     });
@@ -785,11 +811,15 @@ export default function ClientsPage() {
     return Array.from(map.values()).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }, [clientBills, clientAttendances]);
 
+  // Filter out ATTENDANCE_MUSTER JSON files from "Work Orders & Contracts" to eliminate duplication
+  const filteredClientVaultFiles = useMemo(() => {
+    return clientFiles.filter((f) => f.doc_category !== 'ATTENDANCE_MUSTER' && !f.file_name.endsWith('.json'));
+  }, [clientFiles]);
+
   const toggleMonthFolder = (key: string) => {
     setOpenMonthFolders((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Switch between Approved Clients vs Field Visits
   const activeDataset = useMemo(() => {
     return directoryView === 'CLIENTS' ? masterClients : fieldVisitsList;
   }, [directoryView, masterClients, fieldVisitsList]);
@@ -819,7 +849,7 @@ export default function ClientsPage() {
             </span>
           </div>
           <p className="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
-            Enterprise dossiers, monthly billing folders, attendance musters, certified quotations, and signed agreements.
+            Enterprise client dossiers, verified duty muster rolls, photographic inspections, and tax invoices.
           </p>
         </div>
 
@@ -832,7 +862,7 @@ export default function ClientsPage() {
         </button>
       </div>
 
-      {/* Control Bar: Primary View Segmented Control + Search & Filter */}
+      {/* Control Bar */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-4 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center p-1 bg-slate-100 rounded-xl w-full md:w-auto shrink-0">
           <button
@@ -893,7 +923,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Grid of Cards */}
+      {/* Grid of Client Cards */}
       {loading ? (
         <div className="py-20 text-center flex flex-col items-center justify-center gap-3">
           <Loader2 className="h-8 w-8 text-red-700 animate-spin" />
@@ -923,7 +953,6 @@ export default function ClientsPage() {
               onClick={() => openClientDossier(item)}
               className="bg-white border border-slate-200/90 rounded-2xl hover:border-red-600 hover:shadow-md transition cursor-pointer flex flex-col justify-between overflow-hidden group shadow-xs"
             >
-              {/* Folder Tab Shape Header */}
               <div className="bg-slate-50/80 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                   <div
@@ -963,7 +992,6 @@ export default function ClientsPage() {
                 )}
               </div>
 
-              {/* Folder Content */}
               <div className="p-5 space-y-3 flex-1">
                 <div>
                   <h3 className="text-sm font-black text-slate-900 group-hover:text-red-700 transition truncate">
@@ -990,7 +1018,6 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {/* Bottom Status Banner */}
               <div className="px-5 py-3 bg-[#FBFBF9] border-t border-slate-100 flex items-center justify-between text-[11px]">
                 <span className="font-mono text-slate-400 text-[10px]">
                   {item.gst_number ? `GST: ${item.gst_number}` : directoryView === 'CLIENTS' ? 'Approved Contract' : 'Field Lead'}
@@ -1004,13 +1031,13 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* 360 Client Document Vault Drawer */}
+      {/* Redesigned 2-Column Master-Detail Client Vault Drawer */}
       {selectedClient && (
-        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs flex justify-end z-50">
-          <div className="w-full max-w-2xl bg-white h-full shadow-2xl overflow-y-auto flex flex-col justify-between animate-in slide-in-from-right duration-200">
-            <div>
-              {/* Dossier Banner */}
-              <div className="p-6 bg-slate-900 text-white flex items-start justify-between gap-4">
+        <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs flex justify-end z-50">
+          <div className="w-full max-w-5xl bg-white h-full shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+            {/* Top Bar */}
+            <div className="shrink-0 border-b border-slate-200">
+              <div className="p-5 bg-slate-900 text-white flex items-start justify-between gap-4">
                 <div className="space-y-1">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-mono text-amber-300 uppercase">
                     <FolderOpen size={12} />
@@ -1027,117 +1054,182 @@ export default function ClientsPage() {
                 </button>
               </div>
 
-              {/* Action Ribbon */}
-              <div className="bg-[#FBFBF9] border-b border-slate-200 px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
+              {/* Action Buttons */}
+              <div className="bg-[#FAF9F5] px-5 py-2.5 flex items-center justify-between gap-3 flex-wrap">
                 <button
                   onClick={() => handleOpenEdit(selectedClient)}
-                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition cursor-pointer shadow-2xs"
                 >
-                  Edit Master Particulars
+                  Edit Details
                 </button>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={generatingAuditPdf}
+                    onClick={handlePrintAuditDossierPdf}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black uppercase tracking-wider transition cursor-pointer shadow-2xs disabled:opacity-50"
+                  >
+                    {generatingAuditPdf ? <Loader2 size={13} className="animate-spin" /> : <Printer size={13} />}
+                    <span>Audit Report PDF</span>
+                  </button>
+
                   <Link
                     href={`/admin/attendance?unit=${encodeURIComponent(selectedClient.company_name)}`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold transition cursor-pointer shadow-xs"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold transition cursor-pointer shadow-2xs"
                   >
                     <ClipboardList size={12} className="text-amber-300" />
-                    <span>New Muster Sheet</span>
+                    <span>New Muster</span>
                   </Link>
 
                   <Link
                     href="/admin/billing"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-wider transition cursor-pointer shadow-2xs"
                   >
                     <Receipt size={13} />
                     <span>Issue Bill</span>
                   </Link>
                 </div>
               </div>
+            </div>
 
-              {/* Folder Tabs Navigation */}
-              <div className="flex items-center border-b border-slate-200 px-6 bg-white overflow-x-auto">
+            {/* Main Two-Column Body */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* Left Vertical Category Navigation (Clearer Names) */}
+              <div className="w-64 shrink-0 bg-slate-50 border-r border-slate-200 p-3 space-y-1 overflow-y-auto">
+                <div className="px-3 py-2 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                  Dossier Sections
+                </div>
+
                 <button
+                  type="button"
                   onClick={() => setActiveFolderTab('BILLS')}
-                  className={`py-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 shrink-0 cursor-pointer ${activeFolderTab === 'BILLS'
-                    ? 'border-red-700 text-red-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeFolderTab === 'BILLS'
+                    ? 'bg-white text-red-700 shadow-xs border border-slate-200/80'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                 >
-                  <Folder className="h-4 w-4" />
-                  <span>Monthly Bills &amp; Attendance ({monthlyFoldersData.length} Folders)</span>
+                  <div className="flex items-center gap-2.5">
+                    <Folder size={15} className={activeFolderTab === 'BILLS' ? 'text-red-700' : 'text-slate-400'} />
+                    <span>Monthly Invoices &amp; Attendance</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold">
+                    {monthlyFoldersData.length}
+                  </span>
                 </button>
 
                 <button
+                  type="button"
+                  onClick={() => setActiveFolderTab('AUDIT_PHOTOS')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeFolderTab === 'AUDIT_PHOTOS'
+                    ? 'bg-white text-red-700 shadow-xs border border-slate-200/80'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Camera size={15} className={activeFolderTab === 'AUDIT_PHOTOS' ? 'text-red-700' : 'text-slate-400'} />
+                    <span>Site Inspection Photos</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-red-100 text-red-800 font-bold">
+                    {clientAuditPhotos.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setActiveFolderTab('FILES')}
-                  className={`py-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 shrink-0 cursor-pointer ${activeFolderTab === 'FILES'
-                    ? 'border-red-700 text-red-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeFolderTab === 'FILES'
+                    ? 'bg-white text-red-700 shadow-xs border border-slate-200/80'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                 >
-                  <Paperclip size={14} />
-                  <span>Work Orders &amp; Files ({clientFiles.length})</span>
+                  <div className="flex items-center gap-2.5">
+                    <Paperclip size={15} className={activeFolderTab === 'FILES' ? 'text-red-700' : 'text-slate-400'} />
+                    <span>Work Orders &amp; Contracts</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold">
+                    {filteredClientVaultFiles.length}
+                  </span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setActiveFolderTab('PROPOSALS')}
-                  className={`py-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 shrink-0 cursor-pointer ${activeFolderTab === 'PROPOSALS'
-                    ? 'border-red-700 text-red-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeFolderTab === 'PROPOSALS'
+                    ? 'bg-white text-red-700 shadow-xs border border-slate-200/80'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                 >
-                  <FileText size={14} />
-                  <span>Quotations ({clientProposals.length})</span>
+                  <div className="flex items-center gap-2.5">
+                    <FileText size={15} className={activeFolderTab === 'PROPOSALS' ? 'text-red-700' : 'text-slate-400'} />
+                    <span>Quotations</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold">
+                    {clientProposals.length}
+                  </span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setActiveFolderTab('SURVEYS')}
-                  className={`py-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 shrink-0 cursor-pointer ${activeFolderTab === 'SURVEYS'
-                    ? 'border-red-700 text-red-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeFolderTab === 'SURVEYS'
+                    ? 'bg-white text-red-700 shadow-xs border border-slate-200/80'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                 >
-                  <FileCheck2 size={14} />
-                  <span>Survey Dockets ({clientVisits.length})</span>
+                  <div className="flex items-center gap-2.5">
+                    <FileCheck2 size={15} className={activeFolderTab === 'SURVEYS' ? 'text-red-700' : 'text-slate-400'} />
+                    <span>Field Visit Reports</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold">
+                    {clientVisits.length}
+                  </span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setActiveFolderTab('STATUTORY')}
-                  className={`py-3 px-3 text-xs font-bold border-b-2 transition flex items-center gap-1.5 shrink-0 cursor-pointer ${activeFolderTab === 'STATUTORY'
-                    ? 'border-red-700 text-red-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${activeFolderTab === 'STATUTORY'
+                    ? 'bg-white text-red-700 shadow-xs border border-slate-200/80'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                 >
-                  <ShieldCheck size={14} />
-                  <span>Tax &amp; Contract</span>
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck size={15} className={activeFolderTab === 'STATUTORY' ? 'text-red-700' : 'text-slate-400'} />
+                    <span>Company &amp; Tax Info</span>
+                  </div>
                 </button>
               </div>
 
-              {/* Folder Content Area */}
-              <div className="p-6">
+              {/* Right Workspace Stage */}
+              <div className="flex-1 p-6 overflow-y-auto bg-white">
                 {loadingDetails ? (
-                  <div className="py-12 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+                  <div className="py-16 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
                     <Loader2 size={24} className="animate-spin text-red-700" />
                     <span>Loading documents from storage...</span>
                   </div>
                 ) : (
                   <>
-                    {/* TAB 1: NESTED MONTHLY BILLS & ATTENDANCE FOLDERS */}
+                    {/* TAB 1: MONTHLY INVOICES & ATTENDANCE */}
                     {activeFolderTab === 'BILLS' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                          <span>Monthly Accounting &amp; Attendance Folders</span>
-                          <span className="text-[10px] text-slate-400 font-normal">
-                            Contains Tax Invoice + Shift Attendance Musters
-                          </span>
+                      <div className="space-y-4 animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                          <div>
+                            <span className="text-xs font-black uppercase text-slate-900 block">
+                              Monthly Invoices &amp; Verified Musters
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              Each monthly folder groups the Tax Bill alongside the printable Duty Muster Sheet.
+                            </span>
+                          </div>
                         </div>
 
                         {monthlyFoldersData.length === 0 ? (
                           <div className="p-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center text-xs text-slate-500 space-y-2">
                             <Folder className="h-8 w-8 text-slate-300 mx-auto" />
-                            <p className="font-semibold text-slate-700">No monthly billing records created yet</p>
+                            <p className="font-semibold text-slate-700">No monthly records yet</p>
                             <p className="text-[11px] text-slate-400">
-                              When you save an attendance sheet or generate an invoice, it organizes automatically into monthly folders here.
+                              Save an attendance sheet or issue a bill to see it organized by month here.
                             </p>
                           </div>
                         ) : (
@@ -1149,7 +1241,7 @@ export default function ClientsPage() {
                                   key={folder.monthKey}
                                   className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-xs transition"
                                 >
-                                  {/* Folder Header */}
+                                  {/* Folder Banner */}
                                   <div
                                     onClick={() => toggleMonthFolder(folder.monthKey)}
                                     className="p-4 bg-slate-50 hover:bg-slate-100/70 flex items-center justify-between cursor-pointer select-none transition"
@@ -1163,7 +1255,7 @@ export default function ClientsPage() {
                                           Period: {folder.monthKey}
                                         </span>
                                         <span className="text-[10px] font-mono text-slate-500">
-                                          {folder.bills.length} Invoices &bull; {folder.attendances.length} Shift Musters
+                                          {folder.bills.length} Invoices &bull; {folder.attendances.length} Muster Sheets
                                         </span>
                                       </div>
                                     </div>
@@ -1178,24 +1270,24 @@ export default function ClientsPage() {
                                     </div>
                                   </div>
 
-                                  {/* Folder Sub-Items */}
+                                  {/* Folder Body: Split into Invoices vs Duty Musters */}
                                   {isOpen && (
-                                    <div className="p-4 border-t border-slate-100 bg-white space-y-3 animate-in fade-in duration-150">
-                                      {/* Invoices */}
+                                    <div className="p-4 border-t border-slate-100 bg-white space-y-4 animate-in fade-in duration-150">
+                                      {/* Tax Invoices Section */}
                                       <div className="space-y-2">
-                                        <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
-                                          Invoices &amp; Bills
+                                        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">
+                                          1. Tax Invoices &amp; Bills
                                         </span>
                                         {folder.bills.length === 0 ? (
-                                          <p className="text-[11px] text-slate-400 italic">No invoice generated for this period.</p>
+                                          <p className="text-[11px] text-slate-400 italic">No tax invoice generated for this period.</p>
                                         ) : (
                                           folder.bills.map((b) => (
                                             <div
                                               key={b.id}
-                                              className="p-3 border border-slate-200 rounded-xl flex items-center justify-between text-xs bg-[#FBFBF9]"
+                                              className="p-3 border border-slate-200 rounded-xl flex items-center justify-between text-xs bg-[#FAF9F5]"
                                             >
                                               <div className="flex items-center gap-2.5">
-                                                <Receipt size={15} className="text-red-700 shrink-0" />
+                                                <Receipt size={16} className="text-red-700 shrink-0" />
                                                 <div>
                                                   <span className="font-bold text-slate-900 block">{b.bill_no}</span>
                                                   <span className="text-[10px] text-slate-400 font-mono">
@@ -1213,13 +1305,13 @@ export default function ClientsPage() {
                                         )}
                                       </div>
 
-                                      {/* Attendance Musters */}
+                                      {/* Duty Musters Section with Direct PDF Action */}
                                       <div className="space-y-2 pt-2 border-t border-slate-100">
-                                        <span className="text-[9.5px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
-                                          Verified Attendance &amp; OT Muster Rolls
+                                        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">
+                                          2. Verified Guard Attendance &amp; OT Muster Roll
                                         </span>
                                         {folder.attendances.length === 0 ? (
-                                          <p className="text-[11px] text-slate-400 italic">No attendance sheets saved for this period.</p>
+                                          <p className="text-[11px] text-slate-400 italic">No attendance sheets saved for this month.</p>
                                         ) : (
                                           folder.attendances.map((att) => (
                                             <div
@@ -1227,7 +1319,7 @@ export default function ClientsPage() {
                                               className="p-3 border border-slate-200 rounded-xl flex items-center justify-between text-xs bg-white hover:border-slate-300 transition"
                                             >
                                               <div className="flex items-center gap-2.5 min-w-0">
-                                                <ClipboardList size={15} className="text-amber-700 shrink-0" />
+                                                <ClipboardList size={16} className="text-amber-700 shrink-0" />
                                                 <div className="min-w-0">
                                                   <span className="font-bold text-slate-900 block truncate">
                                                     {att.unit_name} ({att.shift_hours}h Shift)
@@ -1238,14 +1330,17 @@ export default function ClientsPage() {
                                                 </div>
                                               </div>
 
+                                              {/* Action: Print or View directly without downloading JSON */}
                                               <div className="flex items-center gap-2 shrink-0">
-                                                <Link
-                                                  href={`/admin/attendance?unit=${encodeURIComponent(att.unit_name)}&month=${att.month}&year=${att.year}`}
-                                                  className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-[11px] font-bold flex items-center gap-1 transition"
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handlePrintMusterRoll(att)}
+                                                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer"
+                                                  title="Open Printable Attendance Sheet (PDF)"
                                                 >
-                                                  <Printer size={11} className="text-amber-300" />
-                                                  <span>View / Print</span>
-                                                </Link>
+                                                  <Printer size={12} className="text-amber-300" />
+                                                  <span>Print / Save PDF</span>
+                                                </button>
                                               </div>
                                             </div>
                                           ))
@@ -1261,11 +1356,90 @@ export default function ClientsPage() {
                       </div>
                     )}
 
-                    {/* TAB 2: FILES (WITH TRUE DIRECT DOWNLOAD + PRINT ENGINE) */}
+                    {/* TAB 2: SITE INSPECTION PHOTOS */}
+                    {activeFolderTab === 'AUDIT_PHOTOS' && (
+                      <div className="space-y-4 animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                          <div>
+                            <span className="text-xs font-black uppercase text-slate-900 block">
+                              Site Inspection Photos &amp; Patrol Evidence
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              Real-time geotagged photos captured on-site by field staff.
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={generatingAuditPdf || clientAuditPhotos.length === 0}
+                            onClick={handlePrintAuditDossierPdf}
+                            className="px-3.5 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-50"
+                          >
+                            <Printer size={13} />
+                            <span>Export Audit PDF</span>
+                          </button>
+                        </div>
+
+                        {clientAuditPhotos.length === 0 ? (
+                          <div className="p-10 bg-slate-50 border border-dashed border-slate-200 rounded-3xl text-center space-y-2">
+                            <Camera size={32} className="mx-auto text-slate-300" />
+                            <p className="font-bold text-xs uppercase text-slate-700">No on-site audit photos recorded yet</p>
+                            <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                              When field inspectors take angle photos for {selectedClient.company_name} using the mobile app, they stream automatically into this vault.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                            {clientAuditPhotos.map((photo) => (
+                              <div
+                                key={photo.id}
+                                onClick={() => setPreviewAuditPhoto(photo)}
+                                className="group bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-red-700 transition cursor-pointer flex flex-col justify-between"
+                              >
+                                <div className="relative aspect-video bg-black overflow-hidden">
+                                  <img
+                                    src={photo.photo_url}
+                                    alt={photo.tag_label}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                    loading="lazy"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+
+                                  <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[8.5px] font-mono font-bold text-white uppercase">
+                                    {photo.premise_type}
+                                  </div>
+
+                                  {photo.latitude && (
+                                    <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-emerald-950/80 text-emerald-300 text-[8px] font-mono font-bold flex items-center gap-1">
+                                      <MapPin size={8} />
+                                      <span>GPS</span>
+                                    </div>
+                                  )}
+
+                                  <div className="absolute bottom-2 left-2 right-2 text-white">
+                                    <p className="text-[11px] font-bold uppercase truncate drop-shadow-xs">
+                                      {photo.tag_label}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="p-2.5 bg-white space-y-1 border-t border-slate-100">
+                                  <div className="flex items-center justify-between text-[9px] font-mono text-slate-500">
+                                    <span className="truncate">By: {photo.captured_by}</span>
+                                    <span className="shrink-0">{new Date(photo.captured_at).toLocaleDateString('en-GB')}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* TAB 3: WORK ORDERS & CONTRACTS (NO DUPLICATE JSON FILES) */}
                     {activeFolderTab === 'FILES' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                          <span>Client Files, Work Orders &amp; Survey Transmittal Letters</span>
+                      <div className="space-y-4 animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-800 pb-2 border-b border-slate-100">
+                          <span>Client Work Orders, Agreements &amp; Scans</span>
                           <button
                             onClick={() => {
                               setUploadFile(null);
@@ -1280,17 +1454,17 @@ export default function ClientsPage() {
                           </button>
                         </div>
 
-                        {clientFiles.length === 0 ? (
+                        {filteredClientVaultFiles.length === 0 ? (
                           <div className="p-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center text-xs text-slate-500 space-y-2">
                             <FileBadge size={30} className="mx-auto text-slate-300" />
-                            <p className="font-semibold text-slate-700">No external documents uploaded yet</p>
+                            <p className="font-semibold text-slate-700">No contracts or work orders uploaded</p>
                             <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                              Upload signed client work orders, service agreements, GST certificate scans, or save a Survey Transmittal Letter from the quotation desk.
+                              Upload signed client work orders, service agreements, GST certificate copies, or cancelled cheques here.
                             </p>
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {clientFiles.map((doc) => (
+                            {filteredClientVaultFiles.map((doc) => (
                               <div
                                 key={doc.id}
                                 className="p-4 border border-slate-200 rounded-2xl bg-white hover:border-slate-300 transition shadow-xs flex items-center justify-between gap-3 text-xs"
@@ -1300,13 +1474,8 @@ export default function ClientsPage() {
                                     <span className="font-black text-slate-900 block truncate">
                                       {doc.doc_title}
                                     </span>
-                                    <span
-                                      className={`text-[8.5px] font-mono font-bold uppercase px-2 py-0.5 rounded-full border ${doc.file_type === 'SURVEY_LETTER'
-                                          ? 'bg-red-50 text-red-800 border-red-200'
-                                          : 'bg-slate-100 text-slate-700 border-slate-200'
-                                        }`}
-                                    >
-                                      {doc.file_type === 'SURVEY_LETTER' ? 'SURVEY NOTICE' : doc.doc_category.replace('_', ' ')}
+                                    <span className="text-[8.5px] font-mono font-bold uppercase px-2 py-0.5 rounded-full border bg-slate-100 text-slate-700 border-slate-200">
+                                      {doc.doc_category.replace('_', ' ')}
                                     </span>
                                   </div>
                                   <p className="text-[10.5px] text-slate-400 font-mono truncate">
@@ -1315,22 +1484,19 @@ export default function ClientsPage() {
                                 </div>
 
                                 <div className="flex items-center gap-2 shrink-0">
-                                  {/* Download Button: Triggers True Download / PDF Save Dialog */}
                                   <button
                                     type="button"
                                     disabled={downloadingDocId === doc.id}
                                     onClick={() => handleDownloadVaultFile(doc)}
                                     className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer flex items-center gap-1 font-bold disabled:opacity-50"
-                                    title={doc.file_type === 'SURVEY_LETTER' ? 'Download / Print Survey Letter' : 'Download File'}
+                                    title="Download File"
                                   >
                                     {downloadingDocId === doc.id ? (
                                       <Loader2 size={14} className="animate-spin text-red-700" />
                                     ) : (
                                       <Download size={14} />
                                     )}
-                                    <span className="text-[11px] hidden sm:inline">
-                                      {doc.file_type === 'SURVEY_LETTER' ? 'Print / PDF' : 'Download'}
-                                    </span>
+                                    <span className="text-[11px] hidden sm:inline">Download</span>
                                   </button>
 
                                   <button
@@ -1349,11 +1515,11 @@ export default function ClientsPage() {
                       </div>
                     )}
 
-                    {/* TAB 3: PROPOSALS */}
+                    {/* TAB 4: QUOTATIONS */}
                     {activeFolderTab === 'PROPOSALS' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                          <span>Certified Quotations &amp; Scope Dockets</span>
+                      <div className="space-y-4 animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-800 pb-2 border-b border-slate-100">
+                          <span>Certified Quotations &amp; Proposals</span>
                           <span className="text-[10px] text-slate-400 font-normal">{clientProposals.length} available</span>
                         </div>
 
@@ -1398,18 +1564,18 @@ export default function ClientsPage() {
                       </div>
                     )}
 
-                    {/* TAB 4: SURVEYS */}
+                    {/* TAB 5: FIELD VISIT REPORTS */}
                     {activeFolderTab === 'SURVEYS' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-800">
-                          <span>Physical Survey Dockets &amp; Requisitions</span>
-                          <span className="text-[10px] text-slate-400 font-normal">Rendered from inspection visits</span>
+                      <div className="space-y-4 animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between text-xs font-extrabold uppercase tracking-wider text-slate-800 pb-2 border-b border-slate-100">
+                          <span>Field Officer Visit Logs</span>
+                          <span className="text-[10px] text-slate-400 font-normal">Physical audits and survey visits</span>
                         </div>
 
                         {clientVisits.length === 0 ? (
                           <div className="p-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center text-xs text-slate-500 space-y-1">
                             <FileCheck2 size={28} className="mx-auto text-slate-300" />
-                            <p className="font-semibold text-slate-700">No field survey dockets found</p>
+                            <p className="font-semibold text-slate-700">No field visit records found</p>
                           </div>
                         ) : (
                           <div className="space-y-3">
@@ -1420,7 +1586,7 @@ export default function ClientsPage() {
                               >
                                 <div className="space-y-1 min-w-0">
                                   <span className="font-bold text-xs text-slate-900 block truncate">
-                                    Site Survey Ref #{v.id}
+                                    Inspection Visit #{v.id}
                                   </span>
                                   <p className="text-[11px] text-slate-500 font-mono">
                                     Inspecting Officer: {v.representative_name || 'Field Officer'} &bull; Date: {new Date(v.timestamp).toLocaleDateString('en-IN')}
@@ -1433,9 +1599,9 @@ export default function ClientsPage() {
                       </div>
                     )}
 
-                    {/* TAB 5: STATUTORY */}
+                    {/* TAB 6: COMPANY & TAX INFO */}
                     {activeFolderTab === 'STATUTORY' && (
-                      <div className="space-y-4 text-xs">
+                      <div className="space-y-4 text-xs animate-in fade-in duration-150">
                         <div className="grid grid-cols-2 gap-3">
                           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                             <span className="block text-[10px] font-bold text-slate-400 uppercase">GSTIN / Tax ID</span>
@@ -1450,7 +1616,7 @@ export default function ClientsPage() {
                             </span>
                           </div>
                           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1 col-span-2">
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase">Official Billing / Premises Address</span>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">Official Site &amp; Billing Address</span>
                             <span className="font-medium text-slate-800 text-sm leading-relaxed">
                               {selectedClient.billing_address || 'No billing address provided.'}
                             </span>
@@ -1470,15 +1636,92 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            {/* Drawer Bottom Bar */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+            {/* Bottom Bar */}
+            <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
               <span className="text-[11px] text-slate-400 font-mono">VSF Client Document Core Module</span>
               <button
                 onClick={() => setSelectedClient(null)}
-                className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-2xs"
               >
                 Close Vault
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Audit Photo Preview Modal */}
+      {previewAuditPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPreviewAuditPhoto(null)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative aspect-video bg-black">
+              <img
+                src={previewAuditPhoto.photo_url}
+                alt={previewAuditPhoto.tag_label}
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            <div className="p-5 space-y-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-900">
+                    {previewAuditPhoto.tag_label}
+                  </h3>
+                  <p className="text-xs font-bold text-red-700 uppercase">
+                    {previewAuditPhoto.client_name}
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-800 text-[10px] font-mono font-bold uppercase">
+                  {previewAuditPhoto.premise_type}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 p-3 bg-[#FAF9F5] rounded-xl border border-slate-200 text-xs font-mono">
+                <div>
+                  <span className="text-[9px] text-slate-400 block uppercase font-bold">Inspector</span>
+                  <span className="font-bold text-slate-800">{previewAuditPhoto.captured_by}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] text-slate-400 block uppercase font-bold">Timestamp</span>
+                  <span className="font-bold text-slate-800">
+                    {new Date(previewAuditPhoto.captured_at).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                {previewAuditPhoto.latitude && (
+                  <div className="col-span-2 pt-1 border-t border-slate-200/60 flex items-center gap-1.5 text-emerald-800">
+                    <MapPin size={12} className="text-emerald-700" />
+                    <span>Lat: {previewAuditPhoto.latitude.toFixed(6)}, Lng: {previewAuditPhoto.longitude?.toFixed(6)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <a
+                  href={previewAuditPhoto.photo_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download size={13} />
+                  <span>Download High-Res Original</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => setPreviewAuditPhoto(null)}
+                  className="px-5 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Close Inspection
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1490,7 +1733,7 @@ export default function ClientsPage() {
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-sm font-black text-slate-900 uppercase">Upload To Client Vault</h3>
+                <h3 className="text-sm font-black text-slate-900 uppercase">Upload Document</h3>
                 <p className="text-[11px] text-slate-400 font-mono truncate">{selectedClient.company_name}</p>
               </div>
               <button
@@ -1587,7 +1830,7 @@ export default function ClientsPage() {
                   className="px-5 py-2 rounded-xl bg-red-700 hover:bg-red-800 disabled:opacity-50 text-white font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md"
                 >
                   {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                  <span>{uploading ? 'Uploading...' : 'Save to Vault'}</span>
+                  <span>{uploading ? 'Uploading...' : 'Save Document'}</span>
                 </button>
               </div>
             </form>
@@ -1694,7 +1937,7 @@ export default function ClientsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block uppercase text-[10px] tracking-wider mb-1">PAN Number</label>
+                  <label className="block uppercase text-[10px] tracking-wider mb-1">Permanent Account (PAN)</label>
                   <input
                     type="text"
                     placeholder="ABCDE1234F"
