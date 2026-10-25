@@ -216,7 +216,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Admin navigation">
         {ADMIN_NAVIGATION.map((section) => (
           <div key={section.title}>
-            <p className="mb-1.5 px-3 text-xs font-medium text-slate-400">{section.title}</p>
+            <p className="mb-1.5 px-3 text-xs font-semibold text-slate-500">{section.title}</p>
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const active = isNavActive(item.href);
@@ -229,13 +229,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       className={`flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700 ${
                         active
                           ? 'bg-red-50 font-semibold text-red-800'
-                          : 'font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          : 'font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                       }`}
                     >
                       <span className="flex min-w-0 items-center gap-3">
                         <Icon
                           size={17}
-                          className={`shrink-0 ${active ? 'text-red-700' : 'text-slate-400'}`}
+                          className={`shrink-0 ${active ? 'text-red-700' : 'text-slate-500'}`}
                         />
                         <span className="truncate">{item.label}</span>
                       </span>
@@ -253,17 +253,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         ))}
 
         <div>
-          <p className="mb-1.5 px-3 text-xs font-medium text-slate-400">Open</p>
+          <p className="mb-1.5 px-3 text-xs font-semibold text-slate-500">Open</p>
           <ul className="space-y-0.5">
             <li>
               <a
                 href="/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+                className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
               >
                 <span className="flex items-center gap-3">
-                  <Globe size={17} className="text-slate-400" />
+                  <Globe size={17} className="text-slate-500" />
                   Public website
                 </span>
                 <ExternalLink size={13} className="text-slate-300" />
@@ -274,10 +274,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href={fieldPortalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+                className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
               >
                 <span className="flex items-center gap-3">
-                  <Smartphone size={17} className="text-slate-400" />
+                  <Smartphone size={17} className="text-slate-500" />
                   Field patrol app
                 </span>
                 <ExternalLink size={13} className="text-slate-300" />
