@@ -90,21 +90,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setLoggingOut(true);
     try {
       const supabase = getSupabase();
-      await supabase.auth.signOut({ scope: 'global' }).catch(() => {});
 
+      // 1. Client-side sign out
+      await supabase.auth.signOut({ scope: 'global' }).catch(() => { });
+
+      // 2. Server-side cookie purge (handles HttpOnly and .vidhyasecurityforce.in domain cookies)
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(() => { });
+
+      // 3. Clear browser / desktop local storage
       if (typeof window !== 'undefined') {
         localStorage.clear();
         sessionStorage.clear();
 
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i];
-          const eqPos = cookie.indexOf('=');
-          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
-        }
-
+        // 4. Force hard redirect to login
         window.location.replace('/admin/login');
       }
     } catch (err) {
@@ -156,29 +157,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <Link
                       href={item.href}
                       onClick={() => setMobileDrawerOpen(false)}
-                      className={`group relative flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        active
+                      className={`group relative flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${active
                           ? 'bg-red-700 text-white shadow-xs'
                           : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Icon
                           size={15}
-                          className={`shrink-0 transition-colors ${
-                            active ? 'text-amber-300' : 'text-slate-400 group-hover:text-slate-600'
-                          }`}
+                          className={`shrink-0 transition-colors ${active ? 'text-amber-300' : 'text-slate-400 group-hover:text-slate-600'
+                            }`}
                         />
                         <span className="truncate">{item.label}</span>
                       </div>
 
                       {item.badge && (
                         <span
-                          className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black uppercase tracking-wider ${
-                            active
+                          className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black uppercase tracking-wider ${active
                               ? 'bg-white/20 text-white'
                               : 'bg-red-50 text-red-700 border border-red-200'
-                          }`}
+                            }`}
                         >
                           {item.badge}
                         </span>
