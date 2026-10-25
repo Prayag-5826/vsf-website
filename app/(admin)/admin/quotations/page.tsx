@@ -24,11 +24,13 @@ import {
   Check,
   Building2,
   ShieldCheck,
-  Calendar
+  Calendar,
+  Layers,
+  Percent
 } from 'lucide-react';
 import Link from 'next/link';
 import { getSupabase } from '@/lib/supabaseBrowser';
-import { calculateWageBreakup, ShiftType, RelieverType } from '@/lib/billingMath';
+import { ShiftType, RelieverType } from '@/lib/billingMath';
 import QuotationDocket, { PageNo, DocketCompanyInfo } from '@/components/admin/QuotationDocket';
 import SurveyTransmittalLetter from '@/components/admin/SurveyTransmittalLetter';
 
@@ -78,6 +80,13 @@ interface CustomRoleItem {
   relieverType: RelieverType;
   relieverCustomValue: number;
   uniformAllowance: number;
+}
+
+interface FlatSubOptions {
+  addServiceCharge: boolean;
+  addEpf: boolean;
+  addEsic: boolean;
+  addUniform: boolean;
 }
 
 const formatINR = (value: number): string =>
@@ -184,6 +193,15 @@ export default function QuotationsPage() {
   const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
   const [selectedProposal, setSelectedProposal] = useState<any | null>(null);
   const [billingModel, setBillingModel] = useState<'COMPLIANCE' | 'FLAT'>('COMPLIANCE');
+
+  // Modular Flat Rate Sub-Options
+  const [flatSubOptions, setFlatSubOptions] = useState<FlatSubOptions>({
+    addServiceCharge: true,
+    addEpf: false,
+    addEsic: false,
+    addUniform: false
+  });
+
   const [proposalSubject, setProposalSubject] = useState('Deployment of Security Guarding & Facility Management Operations');
   const [paymentTermsDays, setPaymentTermsDays] = useState<number>(7);
   const [validityDays, setValidityDays] = useState<number>(30);
@@ -219,9 +237,9 @@ export default function QuotationsPage() {
     relieverCustomValue: number;
     uniformAllowance: number;
   }>>({
-    GUARD: { count: 1, shift: '12_HOURS', customBasic: 13421, flatRate: 15500, relieverType: 'PERCENT', relieverCustomValue: 16.67, uniformAllowance: 250 },
-    SUPERVISOR: { count: 0, shift: '12_HOURS', customBasic: 14869, flatRate: 18500, relieverType: 'PERCENT', relieverCustomValue: 16.67, uniformAllowance: 250 },
-    GUNMAN: { count: 0, shift: '12_HOURS', customBasic: 16500, flatRate: 23000, relieverType: 'PERCENT', relieverCustomValue: 16.67, uniformAllowance: 250 },
+    GUARD: { count: 1, shift: '12_HOURS', customBasic: 13421, flatRate: 15000, relieverType: 'PERCENT', relieverCustomValue: 16.67, uniformAllowance: 250 },
+    SUPERVISOR: { count: 0, shift: '12_HOURS', customBasic: 14869, flatRate: 18000, relieverType: 'PERCENT', relieverCustomValue: 16.67, uniformAllowance: 250 },
+    GUNMAN: { count: 0, shift: '12_HOURS', customBasic: 16500, flatRate: 22000, relieverType: 'PERCENT', relieverCustomValue: 16.67, uniformAllowance: 250 },
     HOUSEKEEPING: { count: 0, shift: '8_HOURS', customBasic: 15000, flatRate: 12000, relieverType: 'NIL', relieverCustomValue: 0, uniformAllowance: 250 }
   });
 
@@ -290,13 +308,6 @@ export default function QuotationsPage() {
 
       setLiveServiceMatrix(matrix);
       setServiceChargePercent(Number(s.default_service_margin || 8));
-
-      setPresetConfigs((prev) => ({
-        GUARD: { ...prev.GUARD, flatRate: matrix.GUARD.flat12, customBasic: matrix.GUARD.basic12 },
-        SUPERVISOR: { ...prev.SUPERVISOR, flatRate: matrix.SUPERVISOR.flat12, customBasic: matrix.SUPERVISOR.basic12 },
-        GUNMAN: { ...prev.GUNMAN, flatRate: matrix.GUNMAN.flat12, customBasic: matrix.GUNMAN.basic12 },
-        HOUSEKEEPING: { ...prev.HOUSEKEEPING, flatRate: matrix.HOUSEKEEPING.flat8, customBasic: matrix.HOUSEKEEPING.basic8 }
-      }));
     }
 
     const combinedMap = new Map<string, AccountOption>();
@@ -419,13 +430,31 @@ export default function QuotationsPage() {
     setCustomRoles((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // Build Service Items dynamically with mathematically accurate summation
+  // Build Service Items dynamically with multi-option Flat Rate & Compliance models
   const activeChosenServices = useMemo(() => {
     if (viewMode === 'PREVIEW' && selectedProposal?.service_items && !editingProposalId) {
       return selectedProposal.service_items;
     }
 
     const lines: any[] = [];
+
+    // Helper: Calculate per-head amount based on selected flat rate options
+    const computeFlatRate = (baseRate: number, uniform: number) => {
+      const epf = flatSubOptions.addEpf ? Math.round(baseRate * 0.13) : 0;
+      const esic = flatSubOptions.addEsic ? Math.round(baseRate * 0.0325) : 0;
+      const kit = flatSubOptions.addUniform ? uniform : 0;
+      const subtotal = baseRate + epf + esic + kit;
+      const margin = flatSubOptions.addServiceCharge ? Math.round((subtotal * serviceChargePercent) / 100) : 0;
+      return {
+        baseRate,
+        epf,
+        esic,
+        kit,
+        subtotal,
+        margin,
+        grandTotal: subtotal + margin
+      };
+    };
 
     // Standard preset positions
     (Object.keys(liveServiceMatrix) as (keyof typeof liveServiceMatrix)[]).forEach((role) => {
@@ -435,7 +464,9 @@ export default function QuotationsPage() {
       if (enabledPresets[role] && parsedCount > 0) {
         const meta = liveServiceMatrix[role];
         const basicAmt = Number(cfg.customBasic) || (cfg.shift === '12_HOURS' ? meta.basic12 : meta.basic8);
+        const uniformAmt = Number(cfg.uniformAllowance || 250);
 
+        // 1. Compliance calculations
         const epf = Math.round(basicAmt * 0.13);
         const esic = Math.round(basicAmt * 0.0325);
         const overtime = cfg.shift === '12_HOURS' ? Math.round(basicAmt * 0.35) : 0;
@@ -444,26 +475,39 @@ export default function QuotationsPage() {
           : cfg.relieverType === 'FIXED'
             ? Number(cfg.relieverCustomValue || 0)
             : 0;
-        const uniform = Number(cfg.uniformAllowance || 250);
 
-        const subtotal = basicAmt + overtime + reliever + epf + esic + uniform;
-        const margin = Math.round((subtotal * serviceChargePercent) / 100);
-        const grandTotal = subtotal + margin;
+        const compSubtotal = basicAmt + overtime + reliever + epf + esic + uniformAmt;
+        const compMargin = Math.round((compSubtotal * serviceChargePercent) / 100);
+        const compGrandTotal = compSubtotal + compMargin;
 
-        const statutory = {
+        // 2. Flat Rate calculations
+        const flatCalc = computeFlatRate(cfg.flatRate, uniformAmt);
+
+        const statutory = billingModel === 'COMPLIANCE' ? {
           basic: basicAmt,
           gross: basicAmt + overtime + reliever,
           overtime,
           reliever,
           epf,
           esic,
-          uniform,
-          subtotal,
-          serviceCharge: margin,
-          grandTotal
+          uniform: uniformAmt,
+          subtotal: compSubtotal,
+          serviceCharge: compMargin,
+          grandTotal: compGrandTotal
+        } : {
+          basic: cfg.flatRate,
+          gross: cfg.flatRate,
+          overtime: 0,
+          reliever: 0,
+          epf: flatCalc.epf,
+          esic: flatCalc.esic,
+          uniform: flatCalc.kit,
+          subtotal: flatCalc.subtotal,
+          serviceCharge: flatCalc.margin,
+          grandTotal: flatCalc.grandTotal
         };
 
-        const perHeadRate = billingModel === 'COMPLIANCE' ? grandTotal : cfg.flatRate;
+        const perHeadRate = billingModel === 'COMPLIANCE' ? compGrandTotal : flatCalc.grandTotal;
 
         lines.push({
           role,
@@ -472,16 +516,19 @@ export default function QuotationsPage() {
           shift: cfg.shift,
           perHeadRate,
           lineTotal: perHeadRate * parsedCount,
-          statutory
+          statutory,
+          flatBreakup: billingModel === 'FLAT' ? flatCalc : undefined
         });
       }
     });
 
-    // Custom positions (Peon, Operator, Driver, etc.)
+    // Custom roles
     customRoles.forEach((custom) => {
       const parsedCount = parseInt(String(custom.count || 0), 10) || 0;
       if (parsedCount > 0) {
         const basicAmt = Number(custom.customBasic) || 15000;
+        const uniformAmt = Number(custom.uniformAllowance || 250);
+
         const epf = custom.hasEpf ? Math.round(basicAmt * 0.13) : 0;
         const esic = custom.hasEsic ? Math.round(basicAmt * 0.0325) : 0;
         const overtime = custom.shift === '12_HOURS' ? Math.round(basicAmt * 0.35) : 0;
@@ -490,26 +537,38 @@ export default function QuotationsPage() {
           : custom.relieverType === 'FIXED'
             ? Number(custom.relieverCustomValue || 0)
             : 0;
-        const uniform = Number(custom.uniformAllowance || 250);
 
-        const subtotal = basicAmt + overtime + reliever + epf + esic + uniform;
-        const margin = Math.round((subtotal * serviceChargePercent) / 100);
-        const grandTotal = subtotal + margin;
+        const compSubtotal = basicAmt + overtime + reliever + epf + esic + uniformAmt;
+        const compMargin = Math.round((compSubtotal * serviceChargePercent) / 100);
+        const compGrandTotal = compSubtotal + compMargin;
 
-        const statutory = {
+        const flatCalc = computeFlatRate(custom.flatRate, uniformAmt);
+
+        const statutory = billingModel === 'COMPLIANCE' ? {
           basic: basicAmt,
           gross: basicAmt + overtime + reliever,
           overtime,
           reliever,
           epf,
           esic,
-          uniform,
-          subtotal,
-          serviceCharge: margin,
-          grandTotal
+          uniform: uniformAmt,
+          subtotal: compSubtotal,
+          serviceCharge: compMargin,
+          grandTotal: compGrandTotal
+        } : {
+          basic: custom.flatRate,
+          gross: custom.flatRate,
+          overtime: 0,
+          reliever: 0,
+          epf: flatCalc.epf,
+          esic: flatCalc.esic,
+          uniform: flatCalc.kit,
+          subtotal: flatCalc.subtotal,
+          serviceCharge: flatCalc.margin,
+          grandTotal: flatCalc.grandTotal
         };
 
-        const perHeadRate = billingModel === 'COMPLIANCE' ? grandTotal : custom.flatRate;
+        const perHeadRate = billingModel === 'COMPLIANCE' ? compGrandTotal : flatCalc.grandTotal;
 
         lines.push({
           role: 'CUSTOM',
@@ -519,6 +578,7 @@ export default function QuotationsPage() {
           perHeadRate,
           lineTotal: perHeadRate * parsedCount,
           statutory,
+          flatBreakup: billingModel === 'FLAT' ? flatCalc : undefined,
           customConfig: {
             hasEpf: custom.hasEpf,
             hasEsic: custom.hasEsic,
@@ -532,9 +592,8 @@ export default function QuotationsPage() {
     });
 
     return lines;
-  }, [viewMode, selectedProposal, editingProposalId, enabledPresets, presetConfigs, customRoles, billingModel, serviceChargePercent, liveServiceMatrix]);
+  }, [viewMode, selectedProposal, editingProposalId, enabledPresets, presetConfigs, customRoles, billingModel, flatSubOptions, serviceChargePercent, liveServiceMatrix]);
 
-  // Compute live mathematical sum to eliminate cached rate discrepancies
   const totalMonthlyBilling = useMemo(() => {
     return activeChosenServices.reduce((acc: number, item: any) => acc + (item.lineTotal || 0), 0);
   }, [activeChosenServices]);
@@ -571,6 +630,7 @@ export default function QuotationsPage() {
     setBuilderErrors([]);
     setEnabledPresets({ GUARD: true, SUPERVISOR: false, GUNMAN: false, HOUSEKEEPING: false });
     setCustomRoles([]);
+    setFlatSubOptions({ addServiceCharge: true, addEpf: false, addEsic: false, addUniform: false });
     setActivePageTab('ALL');
     setViewMode('BUILDER');
   };
@@ -588,7 +648,10 @@ export default function QuotationsPage() {
     setBillingModel(prop.billing_model || 'COMPLIANCE');
     setServiceChargePercent(prop.service_charge_percent || 8);
 
-    // Always load the exact persisted visit appointment details
+    if (prop.flat_sub_options) {
+      setFlatSubOptions(prop.flat_sub_options);
+    }
+
     if (prop.visit_date) {
       setInspectedVisitDate(prop.visit_date);
     } else if (prop.created_at) {
@@ -610,7 +673,7 @@ export default function QuotationsPage() {
               count: s.count ?? 1,
               shift: s.shift || '12_HOURS',
               customBasic: s.statutory?.basic || prev[s.role].customBasic,
-              flatRate: s.perHeadRate || prev[s.role].flatRate,
+              flatRate: s.flatBreakup?.baseRate || s.perHeadRate || prev[s.role].flatRate,
               uniformAllowance: s.statutory?.uniform || 250,
               relieverType: s.statutory?.reliever ? 'PERCENT' : 'NIL',
               relieverCustomValue: s.statutory?.reliever ? 16.67 : 0
@@ -623,7 +686,7 @@ export default function QuotationsPage() {
             count: s.count ?? 1,
             shift: s.shift || '8_HOURS',
             customBasic: s.statutory?.basic || s.customConfig?.basic || 15000,
-            flatRate: s.perHeadRate || 15000,
+            flatRate: s.flatBreakup?.baseRate || s.perHeadRate || 15000,
             hasEpf: s.customConfig?.hasEpf ?? true,
             hasEsic: s.customConfig?.hasEsic ?? true,
             relieverType: s.customConfig?.relieverType || (s.statutory?.reliever ? 'PERCENT' : 'NIL'),
@@ -642,10 +705,7 @@ export default function QuotationsPage() {
 
   const handleDeleteProposal = async (propId: string, clientTitle: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-
-    const confirmed = window.confirm(
-      `Permanently delete proposal "${propId}" for ${clientTitle}?\n\nThis removes the docket permanently from the system.`
-    );
+    const confirmed = window.confirm(`Permanently delete proposal "${propId}" for ${clientTitle}?`);
     if (!confirmed) return;
 
     setDeletingId(propId);
@@ -691,6 +751,7 @@ export default function QuotationsPage() {
       payment_terms_days: paymentTermsDays,
       validity_days: validityDays,
       billing_model: billingModel,
+      flat_sub_options: billingModel === 'FLAT' ? flatSubOptions : null,
       service_charge_percent: serviceChargePercent,
       service_items: activeChosenServices,
       total_amount: totalMonthlyBilling,
@@ -723,7 +784,7 @@ export default function QuotationsPage() {
         updated_at: new Date().toISOString()
       }, { onConflict: 'company_name' });
     } catch (clientErr) {
-      console.warn('Auto-client promotion note:', clientErr);
+      console.warn('Auto-client note:', clientErr);
     }
 
     setSubmitting(false);
@@ -749,12 +810,10 @@ export default function QuotationsPage() {
       .eq('id', target.id);
 
     setApprovingId(null);
-
     if (error) {
       alert(`Approval error: ${error.message}`);
       return;
     }
-
     if (selectedProposal && selectedProposal.id === target.id) {
       setSelectedProposal({ ...selectedProposal, status: 'APPROVED' });
     }
@@ -781,21 +840,19 @@ export default function QuotationsPage() {
       `To: The Management, *${client}*\n` +
       `Proposal Reference: ${docRef} | Date: ${new Date().toLocaleDateString('en-GB')}\n\n` +
       `Subject: ${proposalSubject}\n\n` +
-      `Allocated Guarding Deployments:\n${serviceSummary}\n\n` +
+      `Allocated Deployments:\n${serviceSummary}\n\n` +
       `Total Monthly Consideration: ${formatINR(totalMonthlyBilling)}/- (Statutory GST Extra)\n\n` +
       `Regards,\nAnil Dhariwal\nManaging Director\nPhone: +91 9826259020`;
 
     window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  // Instant Standalone Cover Letter Printing Trigger
   const handlePrintCoverLetter = () => {
     setPrintModeType('COVER_LETTER');
     printRequestedRef.current = true;
     setPrintPages(['COVER_LETTER' as any]);
   };
 
-  // 5-Page Standard Rate Sheet Printing Trigger
   const handlePrintDocket = (pageTarget: 'ALL' | 'RATE' | PageNo) => {
     setPrintModeType('DOCKET');
     const pages: PageNo[] = pageTarget === 'ALL' ? ALL_PAGES : [pageTarget === 'RATE' ? 2 : pageTarget];
@@ -803,7 +860,6 @@ export default function QuotationsPage() {
     setPrintPages(pages);
   };
 
-  // Save Standalone Cover Letter copy to Client Document Vault (OVERWRITE SAME RECORD WITH EXACT TITLE)
   const handleSyncLetterToClientVault = async () => {
     if (!docClientName) {
       alert('Please specify an establishment name first.');
@@ -818,7 +874,6 @@ export default function QuotationsPage() {
       const effectiveVisitDate = inspectedVisitDate || selectedProposal?.visit_date || new Date().toISOString().split('T')[0];
       const effectiveTimeSlot = visitTimeSlot || selectedProposal?.visit_time_slot || '11:00 AM – 01:30 PM';
 
-      // Clean, professional client-facing titles
       const cleanDocTitle = `Survey Letter - ${cleanClient}`;
       const cleanFileName = `Survey Letter - ${cleanClient}.pdf`;
 
@@ -835,7 +890,6 @@ export default function QuotationsPage() {
         uploaded_at: new Date().toISOString()
       };
 
-      // Persist visit appointment values into proposals table
       const activePropId = selectedProposal?.id || editingProposalId;
       if (activePropId) {
         await supabase
@@ -847,11 +901,7 @@ export default function QuotationsPage() {
           .eq('id', activePropId);
       }
 
-      // Upsert on 'id' guarantees overwriting without duplicate rows
-      const { error } = await supabase
-        .from('client_documents')
-        .upsert(docPayload, { onConflict: 'id' });
-
+      const { error } = await supabase.from('client_documents').upsert(docPayload, { onConflict: 'id' });
       if (error) throw error;
 
       alert(`Official Survey Letter for "${cleanClient}" saved/updated in Document Vault!`);
@@ -990,49 +1040,119 @@ export default function QuotationsPage() {
       {viewMode === 'BUILDER' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-8 bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-8 shadow-xs space-y-6">
-            <div className="p-3.5 rounded-2xl border bg-amber-50/50 border-amber-200 text-amber-950 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <Crown size={16} className="text-amber-700 shrink-0" />
+
+            {/* Model Selector Bar */}
+            <div className="p-4 rounded-2xl border bg-slate-50 border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase">Direct Wage &amp; Headcount Customizer</p>
-                  <p className="text-[10px] text-slate-500">
-                    Type any custom basic or flat wage directly below. Statutory totals and CTC evaluate in real-time.
+                  <h3 className="text-xs font-black text-slate-900 uppercase flex items-center gap-2">
+                    <Layers size={15} className="text-red-700" />
+                    <span>Commercial Rate Model</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Switch between statutory compliance wage schedules or customizable flat contracts.
                   </p>
                 </div>
-              </div>
-              <span className="text-[9.5px] font-mono font-bold uppercase px-2 py-0.5 rounded-lg bg-white border border-slate-200">
-                LIVE CALC
-              </span>
-            </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 uppercase">
-                  {editingProposalId ? `Editing Docket: ${editingProposalId}` : clientName ? `Quotation: ${clientName}` : 'Commercial Scope & Rate Engine'}
-                </h3>
-                <p className="text-xs text-slate-400">Configure posts, custom roles, and manning requirements</p>
+                <div className="bg-white p-1 rounded-xl border border-slate-200 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setBillingModel('COMPLIANCE')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition cursor-pointer flex items-center gap-1.5 ${
+                      billingModel === 'COMPLIANCE' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <ShieldCheck size={13} className={billingModel === 'COMPLIANCE' ? 'text-amber-300' : 'text-slate-400'} />
+                    <span>Statutory PSARA</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBillingModel('FLAT')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition cursor-pointer flex items-center gap-1.5 ${
+                      billingModel === 'FLAT' ? 'bg-red-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Percent size={13} />
+                    <span>Flat Rate Options</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="bg-[#FBFBF9] p-1 rounded-xl border border-slate-200 flex items-center gap-1 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setBillingModel('COMPLIANCE')}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition cursor-pointer ${
-                    billingModel === 'COMPLIANCE' ? 'bg-red-700 text-white shadow-xs' : 'text-slate-600'
-                  }`}
-                >
-                  Statutory PSARA
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBillingModel('FLAT')}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition cursor-pointer ${
-                    billingModel === 'FLAT' ? 'bg-red-700 text-white shadow-xs' : 'text-slate-600'
-                  }`}
-                >
-                  Flat Rate
-                </button>
-              </div>
+              {/* Sub-Options for Flat Rate[cite: 19] */}
+              {billingModel === 'FLAT' && (
+                <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2.5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold uppercase text-amber-950 block">
+                      Flat Rate Auto-Calculation Formula Options:
+                    </span>
+                    <span className="text-[10px] font-mono text-amber-900 font-bold">
+                      Agency Margin: {serviceChargePercent}%
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold">
+                    <label className={`p-2 rounded-xl border transition cursor-pointer flex items-center gap-2 ${
+                      flatSubOptions.addServiceCharge ? 'bg-white border-amber-400 text-slate-900 shadow-2xs' : 'bg-white/60 border-slate-200 text-slate-500'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={flatSubOptions.addServiceCharge}
+                        onChange={(e) => setFlatSubOptions(prev => ({ ...prev, addServiceCharge: e.target.checked }))}
+                        className="rounded text-red-700"
+                      />
+                      <span>+ Margin ({serviceChargePercent}%)</span>
+                    </label>
+
+                    <label className={`p-2 rounded-xl border transition cursor-pointer flex items-center gap-2 ${
+                      flatSubOptions.addEpf ? 'bg-white border-amber-400 text-slate-900 shadow-2xs' : 'bg-white/60 border-slate-200 text-slate-500'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={flatSubOptions.addEpf}
+                        onChange={(e) => setFlatSubOptions(prev => ({ ...prev, addEpf: e.target.checked }))}
+                        className="rounded text-red-700"
+                      />
+                      <span>+ EPF (13%)</span>
+                    </label>
+
+                    <label className={`p-2 rounded-xl border transition cursor-pointer flex items-center gap-2 ${
+                      flatSubOptions.addEsic ? 'bg-white border-amber-400 text-slate-900 shadow-2xs' : 'bg-white/60 border-slate-200 text-slate-500'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={flatSubOptions.addEsic}
+                        onChange={(e) => setFlatSubOptions(prev => ({ ...prev, addEsic: e.target.checked }))}
+                        className="rounded text-red-700"
+                      />
+                      <span>+ ESIC (3.25%)</span>
+                    </label>
+
+                    <label className={`p-2 rounded-xl border transition cursor-pointer flex items-center gap-2 ${
+                      flatSubOptions.addUniform ? 'bg-white border-amber-400 text-slate-900 shadow-2xs' : 'bg-white/60 border-slate-200 text-slate-500'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={flatSubOptions.addUniform}
+                        onChange={(e) => setFlatSubOptions(prev => ({ ...prev, addUniform: e.target.checked }))}
+                        className="rounded text-red-700"
+                      />
+                      <span>+ Kit / Uniform</span>
+                    </label>
+                  </div>
+
+                  {/* Formula Preview Helper */}
+                  <div className="pt-1.5 border-t border-amber-200/80 flex items-center justify-between text-[10.5px] font-mono text-amber-900">
+                    <span>Formula: <strong>Base Flat Rate</strong>
+                      {flatSubOptions.addEpf ? ' + EPF (13%)' : ''}
+                      {flatSubOptions.addEsic ? ' + ESIC (3.25%)' : ''}
+                      {flatSubOptions.addUniform ? ' + Uniform' : ''}
+                      {flatSubOptions.addServiceCharge ? ` + Margin (${serviceChargePercent}%)` : ''}
+                    </span>
+                    <span className="font-bold text-red-700">Auto-Evaluated</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleSaveProposal} className="space-y-5">
@@ -1125,13 +1245,13 @@ export default function QuotationsPage() {
                   <input
                     value={clientAddress}
                     onChange={(e) => setClientAddress(e.target.value)}
-                    placeholder="Amjhara Bhopal Sahara Bypass road, Bhopal"
+                    placeholder="Bhopal Sahara Bypass road, MP"
                     className="w-full px-3.5 py-2 bg-[#FBFBF9] border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none focus:border-red-700"
                   />
                 </div>
               </div>
 
-              {/* Commercial Meta Fields with Inspection Appointment Slots */}
+              {/* Commercial Meta Fields */}
               <div className="p-4 bg-[#FBFBF9] border border-slate-200 rounded-2xl grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <label className="text-[9.5px] font-bold text-slate-700 uppercase tracking-wider block">
@@ -1232,7 +1352,7 @@ export default function QuotationsPage() {
               {/* Standard Roles Matrix */}
               <div className="pt-3 border-t border-slate-100 space-y-3">
                 <h4 className="text-xs font-black uppercase text-slate-900">
-                  Standard Security &amp; Facility Personnel (Direct Amount Inputs)
+                  Standard Security &amp; Facility Personnel
                 </h4>
 
                 <div className="space-y-3">
@@ -1240,18 +1360,8 @@ export default function QuotationsPage() {
                     const isChecked = enabledPresets[role];
                     const cfg = presetConfigs[role];
                     const meta = liveServiceMatrix[role];
-                    const basicAmt = Number(cfg.customBasic) || (cfg.shift === '12_HOURS' ? meta.basic12 : meta.basic8);
-
-                    const epf = Math.round(basicAmt * 0.13);
-                    const esic = Math.round(basicAmt * 0.0325);
-                    const overtime = cfg.shift === '12_HOURS' ? Math.round(basicAmt * 0.35) : 0;
-                    const reliever = cfg.relieverType === 'PERCENT' ? Math.round(basicAmt * 0.1667) : cfg.relieverType === 'FIXED' ? Number(cfg.relieverCustomValue || 0) : 0;
-                    const uniform = Number(cfg.uniformAllowance || 250);
-                    const subtotal = basicAmt + overtime + reliever + epf + esic + uniform;
-                    const margin = Math.round((subtotal * serviceChargePercent) / 100);
-                    const grandTotal = subtotal + margin;
-
-                    const perHead = billingModel === 'COMPLIANCE' ? grandTotal : cfg.flatRate;
+                    const activeItem = activeChosenServices.find((x: any) => x.role === role);
+                    const perHead = activeItem?.perHeadRate || (billingModel === 'COMPLIANCE' ? 15000 : cfg.flatRate);
 
                     return (
                       <div
@@ -1339,19 +1449,35 @@ export default function QuotationsPage() {
                                 />
                               </div>
 
-                              <div className="flex items-center space-x-1.5">
-                                <label className="text-[10px] font-mono font-bold text-slate-500 uppercase">Base Wage (₹):</label>
-                                <input
-                                  type="number"
-                                  value={cfg.customBasic}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value);
-                                    setPresetConfigs((p) => ({ ...p, [role]: { ...p[role], customBasic: val } }));
-                                  }}
-                                  className="w-24 px-2 py-1 font-mono font-bold text-xs bg-white border border-slate-300 rounded-lg outline-none text-slate-900"
-                                  placeholder="15000"
-                                />
-                              </div>
+                              {billingModel === 'COMPLIANCE' ? (
+                                <div className="flex items-center space-x-1.5">
+                                  <label className="text-[10px] font-mono font-bold text-slate-500 uppercase">Base Wage (₹):</label>
+                                  <input
+                                    type="number"
+                                    value={cfg.customBasic}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      setPresetConfigs((p) => ({ ...p, [role]: { ...p[role], customBasic: val } }));
+                                    }}
+                                    className="w-24 px-2 py-1 font-mono font-bold text-xs bg-white border border-slate-300 rounded-lg outline-none text-slate-900"
+                                    placeholder="15000"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-1.5">
+                                  <label className="text-[10px] font-mono font-bold text-slate-500 uppercase">Flat Base (₹):</label>
+                                  <input
+                                    type="number"
+                                    value={cfg.flatRate}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      setPresetConfigs((p) => ({ ...p, [role]: { ...p[role], flatRate: val } }));
+                                    }}
+                                    className="w-24 px-2 py-1 font-mono font-bold text-xs bg-white border border-slate-300 rounded-lg outline-none text-red-700"
+                                    placeholder="15000"
+                                  />
+                                </div>
+                              )}
 
                               <div className="flex items-center space-x-1.5">
                                 <label className="text-[10px] font-mono font-bold text-slate-500 uppercase">Kit/Leaves (₹):</label>
@@ -1369,68 +1495,46 @@ export default function QuotationsPage() {
                             </div>
                           )}
 
-                          {isChecked && (
-                            <div className="space-y-2 pt-2 border-t border-slate-100 bg-[#FBFBF9] p-3 rounded-xl">
-                              {billingModel === 'COMPLIANCE' ? (
-                                <div className="space-y-1.5">
-                                  <label className="text-[9.5px] font-bold text-slate-700 uppercase tracking-wider block">
-                                    Reliever Policy (Weekly Off)
-                                  </label>
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <select
-                                      value={cfg.relieverType}
-                                      onChange={(e) => {
-                                        const type = e.target.value as RelieverType;
-                                        setPresetConfigs((p) => ({
-                                          ...p,
-                                          [role]: {
-                                            ...p[role],
-                                            relieverType: type,
-                                            relieverCustomValue: type === 'PERCENT' ? 16.67 : type === 'FIXED' ? 1500 : 0
-                                          }
-                                        }));
-                                      }}
-                                      className="flex-1 min-w-[140px] px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none"
-                                    >
-                                      <option value="PERCENT">Statutory % (16.67%)</option>
-                                      <option value="FIXED">Fixed (₹ / Head)</option>
-                                      <option value="NIL">Nil / Included (₹0)</option>
-                                    </select>
-                                    {cfg.relieverType !== 'NIL' && (
-                                      <input
-                                        type="number"
-                                        value={cfg.relieverCustomValue}
-                                        onChange={(e) => {
-                                          const val = Number(e.target.value);
-                                          setPresetConfigs((p) => ({
-                                            ...p,
-                                            [role]: { ...p[role], relieverCustomValue: val }
-                                          }));
-                                        }}
-                                        className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg font-mono text-xs font-bold text-slate-900 outline-none"
-                                      />
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="space-y-1">
-                                  <label className="text-[9.5px] font-bold text-slate-700 uppercase tracking-wider block">
-                                    Negotiated Flat Rate / Head (₹)
-                                  </label>
+                          {isChecked && billingModel === 'COMPLIANCE' && (
+                            <div className="space-y-1.5 pt-2 border-t border-slate-100 bg-[#FBFBF9] p-3 rounded-xl">
+                              <label className="text-[9.5px] font-bold text-slate-700 uppercase tracking-wider block">
+                                Reliever Policy (Weekly Off)
+                              </label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <select
+                                  value={cfg.relieverType}
+                                  onChange={(e) => {
+                                    const type = e.target.value as RelieverType;
+                                    setPresetConfigs((p) => ({
+                                      ...p,
+                                      [role]: {
+                                        ...p[role],
+                                        relieverType: type,
+                                        relieverCustomValue: type === 'PERCENT' ? 16.67 : type === 'FIXED' ? 1500 : 0
+                                      }
+                                    }));
+                                  }}
+                                  className="flex-1 min-w-[140px] px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none"
+                                >
+                                  <option value="PERCENT">Statutory % (16.67%)</option>
+                                  <option value="FIXED">Fixed (₹ / Head)</option>
+                                  <option value="NIL">Nil / Included (₹0)</option>
+                                </select>
+                                {cfg.relieverType !== 'NIL' && (
                                   <input
                                     type="number"
-                                    value={cfg.flatRate}
+                                    value={cfg.relieverCustomValue}
                                     onChange={(e) => {
                                       const val = Number(e.target.value);
                                       setPresetConfigs((p) => ({
                                         ...p,
-                                        [role]: { ...p[role], flatRate: val }
+                                        [role]: { ...p[role], relieverCustomValue: val }
                                       }));
                                     }}
-                                    className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg font-mono text-xs font-bold text-red-700 outline-none"
+                                    className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg font-mono text-xs font-bold text-slate-900 outline-none"
                                   />
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1446,10 +1550,10 @@ export default function QuotationsPage() {
                   <div>
                     <h4 className="text-xs font-black uppercase text-slate-900 flex items-center gap-1.5">
                       <Sparkles size={14} className="text-amber-600" />
-                      <span>Custom Ad-Hoc Positions (Peon, Operator, Driver, Escort)</span>
+                      <span>Custom Ad-Hoc Positions (Peon, Driver, Escort, Lift Operator)</span>
                     </h4>
                     <p className="text-[10px] text-slate-500">
-                      Configure custom daily wages, 8h/12h shifts, and individual EPF/ESIC compliance status.
+                      Configure custom daily wages, 8h/12h shifts, and individual compliance status.
                     </p>
                   </div>
                   <button
@@ -1590,56 +1694,12 @@ export default function QuotationsPage() {
                               </span>
                             </div>
                           </div>
-
-                          <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#FBFBF9] p-2.5 rounded-lg">
-                            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
-                              Reliever Policy (Weekly Rest / Off):
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <select
-                                value={custom.relieverType}
-                                onChange={(e) => {
-                                  const type = e.target.value as RelieverType;
-                                  setCustomRoles((p) =>
-                                    p.map((r) =>
-                                      r.id === custom.id
-                                        ? {
-                                            ...r,
-                                            relieverType: type,
-                                            relieverCustomValue: type === 'PERCENT' ? 16.67 : type === 'FIXED' ? 1500 : 0
-                                          }
-                                        : r
-                                    )
-                                  );
-                                }}
-                                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none"
-                              >
-                                <option value="NIL">Nil / Included (₹0)</option>
-                                <option value="PERCENT">Statutory % (16.67%)</option>
-                                <option value="FIXED">Fixed (₹ / Head)</option>
-                              </select>
-
-                              {custom.relieverType !== 'NIL' && (
-                                <input
-                                  type="number"
-                                  value={custom.relieverCustomValue}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value);
-                                    setCustomRoles((p) =>
-                                      p.map((r) => (r.id === custom.id ? { ...r, relieverCustomValue: val } : r))
-                                    );
-                                  }}
-                                  className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-lg font-mono text-xs font-bold text-slate-900 outline-none"
-                                />
-                              )}
-                            </div>
-                          </div>
                         </>
                       ) : (
                         <div className="sm:col-span-4 flex items-center justify-between">
                           <div className="w-1/2">
                             <label className="block text-[9.5px] font-mono font-bold text-slate-500 uppercase mb-0.5">
-                              Negotiated Flat Rate (₹ / Head)
+                              Flat Base Rate (₹ / Head)
                             </label>
                             <input
                               type="number"
@@ -1652,9 +1712,9 @@ export default function QuotationsPage() {
                             />
                           </div>
                           <div>
-                            <span className="block text-[9px] font-mono text-slate-400 uppercase">Line Total</span>
+                            <span className="block text-[9px] font-mono text-slate-400 uppercase">Per Head Rate (with Options)</span>
                             <span className="font-mono font-bold text-slate-900 text-sm">
-                              {formatINR(custom.flatRate * (parseInt(String(custom.count || 0), 10) || 0))}
+                              {formatINR(activeChosenServices.find((x: any) => x.id === custom.id)?.perHeadRate || custom.flatRate)}
                             </span>
                           </div>
                         </div>
@@ -1959,7 +2019,7 @@ export default function QuotationsPage() {
                 ))}
               </div>
 
-              {/* Action Buttons: Standalone Letter Printing & Vault Storage */}
+              {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
@@ -2051,7 +2111,7 @@ export default function QuotationsPage() {
         </div>
       )}
 
-      {/* Vector Print Root (Portals clean A4 for browser print dialog) */}
+      {/* Vector Print Root */}
       {viewMode === 'PREVIEW' && typeof document !== 'undefined' && createPortal(
         <div id={PRINT_ROOT_ID} aria-hidden="true">
           {printModeType === 'COVER_LETTER' ? (

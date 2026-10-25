@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ShieldCheck, CheckCircle2, Award, Building, FileCheck } from 'lucide-react';
+import { ShieldCheck, Award, Building, FileCheck } from 'lucide-react';
 import { ShiftType } from '@/lib/billingMath';
 
 export type PageNo = 1 | 2 | 3 | 4 | 5;
@@ -21,6 +21,13 @@ export interface DocketCompanyInfo {
   gstNumber: string;
   ptLicenseNo: string;
   panNumber: string;
+}
+
+export interface FlatSubOptions {
+  addServiceCharge?: boolean;
+  addEpf?: boolean;
+  addEsic?: boolean;
+  addUniform?: boolean;
 }
 
 export interface QuotationDocketProps {
@@ -45,6 +52,7 @@ export interface QuotationDocketProps {
     epf: number;
     esic: number;
   };
+  flatSubOptions?: FlatSubOptions;
 }
 
 const TOTAL_PAGES = 5;
@@ -81,10 +89,41 @@ export default function QuotationDocket({
     reliever: 16.67,
     epf: 13,
     esic: 3.25
+  },
+  flatSubOptions = {
+    addServiceCharge: true,
+    addEpf: false,
+    addEsic: false,
+    addUniform: false
   }
 }: QuotationDocketProps) {
   const docClientName = (clientName || '').trim();
   const docClientAddress = (clientAddress || '').trim();
+
+  // Helper to dynamically describe flat rate inclusions selected by director
+  const getFlatInclusionsLabel = (): string => {
+    // Check if passed directly via prop or embedded in service item
+    const options = flatSubOptions || activeChosenServices?.[0]?.flatSubOptions || {
+      addServiceCharge: true,
+      addEpf: false,
+      addEsic: false,
+      addUniform: false
+    };
+
+    const parts: string[] = ['Negotiated Base Wage'];
+    if (options.addEpf) parts.push('EPF (13%)');
+    if (options.addEsic) parts.push('ESIC (3.25%)');
+    if (options.addUniform) parts.push('Kit & Uniform Allowance');
+    if (options.addServiceCharge) {
+      parts.push(`Agency Service Margin (${effectiveMarginPercent || 8}%)`);
+    }
+
+    if (parts.length === 1) {
+      return 'Direct Negotiated Flat Rate (All-Inclusive)';
+    }
+
+    return parts.join(' + ');
+  };
 
   const renderHeader = () => (
     <div className="w-full border-b-2 border-red-800 pb-3 mb-2.5 flex items-center justify-between gap-4">
@@ -142,8 +181,9 @@ export default function QuotationDocket({
         <p className="text-[10px] font-bold text-slate-700 uppercase">For {company.companyName}</p>
       )}
       <div
-        className={`w-32 h-16 rounded mx-auto flex items-center justify-center p-1 ${company.sealImage && isApproved ? '' : 'border border-dashed border-red-300 bg-red-50/20'
-          }`}
+        className={`w-32 h-16 rounded mx-auto flex items-center justify-center p-1 ${
+          company.sealImage && isApproved ? '' : 'border border-dashed border-red-300 bg-red-50/20'
+        }`}
       >
         {company.sealImage && isApproved ? (
           <img src={company.sealImage} alt="Official Seal" className="max-h-full max-w-full object-contain" />
@@ -235,7 +275,7 @@ export default function QuotationDocket({
                   2. Operational Command &amp; Supervisory Oversight
                 </h3>
                 <ul className="text-[12px] text-slate-700 space-y-1 list-disc pl-5 leading-normal">
-                  <li><strong>Dedicated 24/7 Flying Patrol Squad:</strong> Regular unannounced day and night surprise inspections conducted by Senior Field Officers across Indore, Pithampur, and MP.</li>
+                  <li><strong>Dedicated 24/7 Flying Patrol Squad:</strong> Regular unannounced day and night surprise inspections conducted by Senior Field Officers across Indore, Ujjain, Pithampur, and MP.</li>
                   <li><strong>Central Escalation Desk:</strong> 24-hour rapid communication bridge with local police stations, fire emergency services, and medical first-responders.</li>
                   <li><strong>Turnout Standards:</strong> Crisp ceremonial company uniforms equipped with badges, whistles, lanyards, high-visibility night batons, and formal duty log registers.</li>
                 </ul>
@@ -268,7 +308,7 @@ export default function QuotationDocket({
       )}
 
       {/* =========================================================================
-          PAGE 2: RATE SHEET & WAGE BREAKDOWN (MATHEMATICALLY ACCURATE)
+          PAGE 2: RATE SHEET & WAGE BREAKDOWN
          ========================================================================= */}
       {pageNo === 2 && (
         <>
@@ -292,7 +332,6 @@ export default function QuotationDocket({
                     </tr>
                   </thead>
                   <tbody className="font-mono text-slate-800 text-[11px]">
-                    {/* Row 1: Basic */}
                     <tr className="border-b border-slate-300">
                       <td className="py-1 px-2 border-r border-slate-900 text-center font-bold">1</td>
                       <td className="py-1 px-2.5 border-r border-slate-900 font-sans font-bold text-slate-950">Basic Minimum Wages (26 Days Basis)</td>
@@ -304,7 +343,6 @@ export default function QuotationDocket({
                       ))}
                     </tr>
 
-                    {/* Row 2: Overtime */}
                     <tr className="border-b border-slate-300">
                       <td className="py-1 px-2 border-r border-slate-900 text-center">2</td>
                       <td className="py-1 px-2.5 border-r border-slate-900 font-sans">Overtime Allowance (Additional 4 Hours)</td>
@@ -316,7 +354,6 @@ export default function QuotationDocket({
                       ))}
                     </tr>
 
-                    {/* Row 3: Reliever */}
                     <tr className="border-b border-slate-300">
                       <td className="py-1 px-2 border-r border-slate-900 text-center">3</td>
                       <td className="py-1 px-2.5 border-r border-slate-900 font-sans">Reliever Charges (Weekly Day-Off Allowance)</td>
@@ -330,7 +367,6 @@ export default function QuotationDocket({
                       ))}
                     </tr>
 
-                    {/* Row 4: Gross */}
                     <tr className="border-b border-slate-300 bg-slate-50">
                       <td className="py-1.5 px-2 border-r border-slate-900 text-center font-bold">4</td>
                       <td className="py-1.5 px-2.5 border-r border-slate-900 font-sans font-bold text-slate-950">Gross Guard Earnings (Subtotal A)</td>
@@ -345,7 +381,6 @@ export default function QuotationDocket({
                       })}
                     </tr>
 
-                    {/* Row 5: EPF */}
                     <tr className="border-b border-slate-300">
                       <td className="py-1 px-2 border-r border-slate-900 text-center">5</td>
                       <td className="py-1 px-2.5 border-r border-slate-900 font-sans">Provident Fund (EPF Employer Contribution)</td>
@@ -357,7 +392,6 @@ export default function QuotationDocket({
                       ))}
                     </tr>
 
-                    {/* Row 6: ESIC */}
                     <tr className="border-b border-slate-300">
                       <td className="py-1 px-2 border-r border-slate-900 text-center">6</td>
                       <td className="py-1 px-2.5 border-r border-slate-900 font-sans">ESIC Medical &amp; Accidental Insurance</td>
@@ -369,7 +403,6 @@ export default function QuotationDocket({
                       ))}
                     </tr>
 
-                    {/* Row 7: Uniform & Leaves */}
                     <tr className="border-b border-slate-300">
                       <td className="py-1 px-2 border-r border-slate-900 text-center">7</td>
                       <td className="py-1 px-2.5 border-r border-slate-900 font-sans">Uniform Kit, LWF &amp; Festival Leaves</td>
@@ -381,7 +414,6 @@ export default function QuotationDocket({
                       ))}
                     </tr>
 
-                    {/* Row 8: Agency Margin */}
                     <tr className="border-b border-slate-300">
                       <td className="py-1 px-2 border-r border-slate-900 text-center font-bold">8</td>
                       <td className="py-1 px-2.5 border-r border-slate-900 font-sans font-bold text-slate-950">Agency Administrative &amp; Service Margin</td>
@@ -403,7 +435,6 @@ export default function QuotationDocket({
                       })}
                     </tr>
 
-                    {/* Row 9: Total Cost To Company */}
                     <tr className="bg-[#8b1515] text-white font-black text-xs">
                       <td className="p-2 border border-slate-900 text-center font-mono">9</td>
                       <td className="p-2 border border-slate-900 uppercase font-black tracking-tight">
@@ -441,7 +472,7 @@ export default function QuotationDocket({
                       <th className="py-2.5 px-3 border-r border-red-900">Requested Service Role</th>
                       <th className="py-2.5 px-3 border-r border-red-900 text-center">Shift Schedule</th>
                       <th className="py-2.5 px-3 border-r border-red-900 text-center">Assigned Posts</th>
-                      <th className="py-2.5 px-3 border-r border-red-900 text-right">Negotiated Rate / Head</th>
+                      <th className="py-2.5 px-3 border-r border-red-900 text-right">Consolidated Rate / Head</th>
                       <th className="py-2.5 px-3 text-right">Monthly Consideration</th>
                     </tr>
                   </thead>
@@ -465,6 +496,11 @@ export default function QuotationDocket({
                     ))}
                   </tbody>
                 </table>
+
+                {/* Dynamic Breakdown Note reflecting the exact user configuration */}
+                <div className="mt-1 px-1 text-[9.5px] font-mono text-slate-600">
+                  <span className="font-bold text-red-800">* Commercial Rate Breakdown:</span> Consolidated rate per head is formulated as [{getFlatInclusionsLabel()}].
+                </div>
               </div>
             )}
 
@@ -483,16 +519,16 @@ export default function QuotationDocket({
                   {formatINR(
                     billingModel === 'COMPLIANCE'
                       ? activeChosenServices.reduce((sum: number, srv: any) => {
-                        const basic = Number(srv.statutory?.basic ?? 15000);
-                        const overtime = Number(srv.statutory?.overtime ?? 0);
-                        const reliever = Number(srv.statutory?.reliever ?? 0);
-                        const epf = Number(srv.statutory?.epf ?? 0);
-                        const esic = Number(srv.statutory?.esic ?? 0);
-                        const uniform = Number(srv.statutory?.uniform ?? 250);
-                        const subtotal = basic + overtime + reliever + epf + esic + uniform;
-                        const margin = Math.round((subtotal * (effectiveMarginPercent || 8)) / 100);
-                        return sum + (subtotal + margin) * (srv.count || 1);
-                      }, 0)
+                          const basic = Number(srv.statutory?.basic ?? 15000);
+                          const overtime = Number(srv.statutory?.overtime ?? 0);
+                          const reliever = Number(srv.statutory?.reliever ?? 0);
+                          const epf = Number(srv.statutory?.epf ?? 0);
+                          const esic = Number(srv.statutory?.esic ?? 0);
+                          const uniform = Number(srv.statutory?.uniform ?? 250);
+                          const subtotal = basic + overtime + reliever + epf + esic + uniform;
+                          const margin = Math.round((subtotal * (effectiveMarginPercent || 8)) / 100);
+                          return sum + (subtotal + margin) * (srv.count || 1);
+                        }, 0)
                       : totalMonthlyBilling
                   )}
                 </p>
@@ -509,6 +545,7 @@ export default function QuotationDocket({
                 <li>Monthly certified invoices are strictly payable within <strong>{paymentTermsDays} business days</strong>.</li>
                 <li><strong>GST @ 18% extra</strong> as applicable under prevailing tax statutes (Direct / RCM).</li>
                 <li>Direct recruitment or hiring of deployed staff is prohibited without official clearance and payment of placement compensation.</li>
+                <li><strong>Gender Rate Parity:</strong> Male Security Guard and Female (Lady) Security Guard deployments carry identical rates with zero commercial variation.</li>
               </ol>
             </div>
           </div>
@@ -660,7 +697,6 @@ export default function QuotationDocket({
                 </div>
               </div>
 
-              {/* Directorial Mission Box */}
               <div className="p-4 bg-red-50/60 border-2 border-red-200 rounded-2xl text-center space-y-1 mt-2">
                 <h4 className="text-[11px] font-black uppercase text-red-800 tracking-widest">
                   QUALITY POLICY &amp; DIRECTORIAL COMMITMENT
@@ -724,7 +760,6 @@ export default function QuotationDocket({
                 </table>
               </div>
 
-              {/* Client Acceptance and Work Order Authorization Block */}
               <div className="mt-3 p-3.5 border-2 border-dashed border-slate-400 rounded-xl bg-slate-50/70 space-y-2">
                 <div className="flex justify-between items-center border-b border-slate-300 pb-1">
                   <span className="text-[11.5px] font-black uppercase text-slate-900 tracking-wider">
