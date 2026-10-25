@@ -160,7 +160,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         /* continue */
       }
 
-      // 3. Sweep any JS-readable cookies on the host and the shared domain
+      // 3. Desktop app only: wipe the persistent Electron session
+      try {
+        await withTimeout((window as any).desktopAPI?.clearSession?.());
+      } catch {
+        /* not running in the desktop app */
+      }
+
+      // 3b. Sweep any JS-readable cookies on the host and the shared domain
       const host = window.location.hostname;
       const domainParts = ['', `; domain=${host}`];
       if (host.endsWith(PROD_DOMAIN)) domainParts.push(`; domain=.${PROD_DOMAIN}`);
@@ -333,20 +340,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main column */}
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 sm:px-6">
+        <header
+          className={`flex h-14 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 sm:px-6 ${
+            hasDesktopApi ? 'vsf-titlebar-drag' : ''
+          }`}
+        >
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileDrawerOpen(true)}
               aria-label="Open navigation"
-              className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100 lg:hidden"
+              className="vsf-titlebar-nodrag rounded-md p-1.5 text-slate-600 hover:bg-slate-100 lg:hidden"
             >
               <Menu size={20} />
             </button>
             <h1 className="truncate text-base font-semibold text-slate-900">{pageTitle}</h1>
           </div>
 
-          <div className="flex shrink-0 items-center gap-4">
+          <div className="vsf-titlebar-nodrag flex shrink-0 items-center gap-4">
             <div className="hidden items-center gap-2 text-xs text-slate-500 md:flex">
               <ShieldCheck size={15} className="text-emerald-600" />
               <span>
