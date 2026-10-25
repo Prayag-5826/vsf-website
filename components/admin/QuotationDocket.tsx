@@ -90,27 +90,19 @@ export default function QuotationDocket({
     epf: 13,
     esic: 3.25
   },
-  flatSubOptions = {
-    addServiceCharge: true,
-    addEpf: false,
-    addEsic: false,
-    addUniform: false
-  }
+  flatSubOptions
 }: QuotationDocketProps) {
   const docClientName = (clientName || '').trim();
   const docClientAddress = (clientAddress || '').trim();
 
-  // Helper to dynamically describe flat rate inclusions selected by director
-  const getFlatInclusionsLabel = (): string => {
-    // Check if passed directly via prop or embedded in service item
-    const options = flatSubOptions || activeChosenServices?.[0]?.flatSubOptions || {
-      addServiceCharge: true,
-      addEpf: false,
-      addEsic: false,
-      addUniform: false
-    };
+  // ONLY for FLAT mode: Determine if any add-on was selected
+  const getFlatInclusionsLabel = (): string | null => {
+    if (billingModel !== 'FLAT') return null;
 
-    const parts: string[] = ['Negotiated Base Wage'];
+    const options = flatSubOptions || activeChosenServices?.[0]?.flatSubOptions;
+    if (!options) return null;
+
+    const parts: string[] = [];
     if (options.addEpf) parts.push('EPF (13%)');
     if (options.addEsic) parts.push('ESIC (3.25%)');
     if (options.addUniform) parts.push('Kit & Uniform Allowance');
@@ -118,11 +110,12 @@ export default function QuotationDocket({
       parts.push(`Agency Service Margin (${effectiveMarginPercent || 8}%)`);
     }
 
-    if (parts.length === 1) {
-      return 'Direct Negotiated Flat Rate (All-Inclusive)';
+    // If NOTHING is checked (pure direct flat rate), return null to hide line completely
+    if (parts.length === 0) {
+      return null;
     }
 
-    return parts.join(' + ');
+    return `Negotiated Base Wage + ${parts.join(' + ')}`;
   };
 
   const renderHeader = () => (
@@ -239,9 +232,7 @@ export default function QuotationDocket({
 
   return (
     <div className={containerClass}>
-      {/* =========================================================================
-          PAGE 1: FORMAL TRANSMITTAL & STATUTORY INTRODUCTION
-         ========================================================================= */}
+      {/* PAGE 1: FORMAL TRANSMITTAL */}
       {pageNo === 1 && (
         <>
           <div className="space-y-3.5">
@@ -307,9 +298,7 @@ export default function QuotationDocket({
         </>
       )}
 
-      {/* =========================================================================
-          PAGE 2: RATE SHEET & WAGE BREAKDOWN
-         ========================================================================= */}
+      {/* PAGE 2: RATE SHEET & WAGE BREAKDOWN */}
       {pageNo === 2 && (
         <>
           <div className="space-y-3">
@@ -317,6 +306,7 @@ export default function QuotationDocket({
             {renderClientBlock('Quotation Prepared For:', 'Docket Ref:', docRef)}
 
             {billingModel === 'COMPLIANCE' ? (
+              /* STANDARD STATUTORY PSARA TABLE AS EARLIER */
               <div className="w-full overflow-hidden">
                 <table className="w-full text-left border-collapse border border-slate-900 text-[11px]">
                   <thead>
@@ -465,6 +455,7 @@ export default function QuotationDocket({
                 </table>
               </div>
             ) : (
+              /* FLAT RATE TABLE */
               <div className="w-full">
                 <table className="w-full text-left border-collapse border border-slate-900 text-[12px]">
                   <thead>
@@ -472,7 +463,7 @@ export default function QuotationDocket({
                       <th className="py-2.5 px-3 border-r border-red-900">Requested Service Role</th>
                       <th className="py-2.5 px-3 border-r border-red-900 text-center">Shift Schedule</th>
                       <th className="py-2.5 px-3 border-r border-red-900 text-center">Assigned Posts</th>
-                      <th className="py-2.5 px-3 border-r border-red-900 text-right">Consolidated Rate / Head</th>
+                      <th className="py-2.5 px-3 border-r border-red-900 text-right">Negotiated Rate / Head</th>
                       <th className="py-2.5 px-3 text-right">Monthly Consideration</th>
                     </tr>
                   </thead>
@@ -497,10 +488,17 @@ export default function QuotationDocket({
                   </tbody>
                 </table>
 
-                {/* Dynamic Breakdown Note reflecting the exact user configuration */}
-                <div className="mt-1 px-1 text-[9.5px] font-mono text-slate-600">
-                  <span className="font-bold text-red-800">* Commercial Rate Breakdown:</span> Consolidated rate per head is formulated as [{getFlatInclusionsLabel()}].
-                </div>
+                {/* ONLY SHOW BREAKDOWN NOTE IF FLAT RATE ADD-ONS WERE SELECTED */}
+                {(() => {
+                  const label = getFlatInclusionsLabel();
+                  if (!label) return null; // Hides line completely for pure direct flat rate
+
+                  return (
+                    <div className="mt-1 px-1 text-[9.5px] font-mono text-slate-600">
+                      <span className="font-bold text-red-800">* Commercial Rate Breakdown:</span> Consolidated rate per head is formulated as [{label}].
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -561,9 +559,7 @@ export default function QuotationDocket({
         </>
       )}
 
-      {/* =========================================================================
-          PAGE 3: COMPREHENSIVE TERMS, CONDITIONS & LEGAL COVENANTS
-         ========================================================================= */}
+      {/* PAGE 3: TERMS & COVENANTS */}
       {pageNo === 3 && (
         <>
           <div className="space-y-3">
@@ -630,9 +626,7 @@ export default function QuotationDocket({
         </>
       )}
 
-      {/* =========================================================================
-          PAGE 4: COMPREHENSIVE OPERATIONAL SCOPE & SERVICE SPECIFICATIONS
-         ========================================================================= */}
+      {/* PAGE 4: OPERATIONAL SCOPE */}
       {pageNo === 4 && (
         <>
           <div className="space-y-3.5">
@@ -723,9 +717,7 @@ export default function QuotationDocket({
         </>
       )}
 
-      {/* =========================================================================
-          PAGE 5: STATUTORY LICENSES TABLE & FORMAL CLIENT ACCEPTANCE
-         ========================================================================= */}
+      {/* PAGE 5: STATUTORY CREDENTIALS & WORK ORDER */}
       {pageNo === 5 && (
         <>
           <div className="space-y-3.5">
