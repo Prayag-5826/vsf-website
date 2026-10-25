@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   PhoneCall,
@@ -11,14 +12,15 @@ import {
   Settings,
   ExternalLink,
   Menu,
+  X,
   LogOut,
-  Radio,
-  ChevronRight,
   Globe,
   Files,
   LayoutDashboard,
   Calendar,
-  Loader2
+  Loader2,
+  ShieldCheck,
+  Smartphone,
 } from 'lucide-react';
 import { getSupabase } from '@/lib/supabaseBrowser';
 
@@ -36,148 +38,202 @@ interface NavSection {
 
 const ADMIN_NAVIGATION: NavSection[] = [
   {
-    title: 'Operations & Pipeline',
+    title: 'Operations',
     items: [
-      { href: '/admin', label: 'Operations Command', icon: LayoutDashboard },
-      { href: '/admin/attendance', label: 'Attendance Muster Roll', icon: Calendar },
-      { href: '/admin/telecaller', label: 'Speed Dialer Desk', icon: PhoneCall, badge: 'LIVE' },
-      { href: '/admin/clients', label: 'Client Directory & Vault', icon: FolderOpen },
-      { href: '/admin/documents', label: 'Document Archive', icon: Files }
-    ]
+      { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/admin/attendance', label: 'Attendance', icon: Calendar },
+      { href: '/admin/telecaller', label: 'Telecaller desk', icon: PhoneCall, badge: 'Live' },
+      { href: '/admin/clients', label: 'Clients', icon: FolderOpen },
+      { href: '/admin/documents', label: 'Documents', icon: Files },
+    ],
   },
   {
-    title: 'Commercial & Billing',
+    title: 'Billing',
     items: [
-      { href: '/admin/quotations', label: 'Quotations & Proposals', icon: FileCheck2 },
-      { href: '/admin/billing', label: 'Billing & Invoicing', icon: Receipt }
-    ]
+      { href: '/admin/quotations', label: 'Quotations', icon: FileCheck2 },
+      { href: '/admin/billing', label: 'Invoices', icon: Receipt },
+    ],
   },
   {
-    title: 'System & Configuration',
-    items: [
-      { href: '/admin/settings', label: 'System & Wage Setup', icon: Settings }
-    ]
-  }
+    title: 'System',
+    items: [{ href: '/admin/settings', label: 'Settings', icon: Settings }],
+  },
 ];
+
+const ALL_ITEMS = ADMIN_NAVIGATION.flatMap((s) => s.items);
+
+const PROD_DOMAIN = 'vidhyasecurityforce.in';
+
+/** Resolve after `ms` so a hanging request can never block logout. */
+const withTimeout = <T,>(p: Promise<T>, ms = 4000) =>
+  Promise.race([p, new Promise<undefined>((r) => setTimeout(() => r(undefined), ms))]);
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
-  // Guard against SSR / Client hydration mismatch
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  // Values that depend on the browser are set after mount to avoid hydration mismatch
+  const [mounted, setMounted] = useState(false);
+  const [fieldPortalUrl, setFieldPortalUrl] = useState('#');
+  const [hasDesktopApi, setHasDesktopApi] = useState(false);
+  const [user, setUser] = useState({ name: 'Anil Dhariwal', role: 'Managing Director' });
+
   useEffect(() => {
     setMounted(true);
+    setFieldPortalUrl(
+      window.location.hostname.endsWith(PROD_DOMAIN)
+        ? `https://field.${PROD_DOMAIN}`
+        : 'http://localhost:5173'
+    );
+    setHasDesktopApi(Boolean((window as any).desktopAPI));
+
+    // Show the signed-in user when the session has a name; otherwise keep the default
+    (async () => {
+      try {
+        const { data } = await getSupabase().auth.getUser();
+        const meta = data?.user?.user_metadata as Record<string, string> | undefined;
+        const name = meta?.full_name || meta?.name;
+        if (name) setUser({ name, role: meta?.role || 'Administrator' });
+      } catch {
+        /* keep default */
+      }
+    })();
   }, []);
 
-  const fieldPortalUrl =
-    typeof window !== 'undefined' && window.location.hostname.includes('vidhyasecurityforce.in')
-      ? 'https://field.vidhyasecurityforce.in'
-      : 'http://localhost:5173';
+  // Close the drawer / dialog with Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (!loggingOut) setConfirmOpen(false);
+      setMobileDrawerOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [loggingOut]);
 
-  const isNavActive = (href: string) => {
-    if (href === '/admin') {
-      return pathname === '/admin';
-    }
-    return pathname.startsWith(href);
-  };
+  // Close the drawer whenever the route changes
+  useEffect(() => {
+    setMobileDrawerOpen(false);
+  }, [pathname]);
 
-  const handleSignOut = async () => {
-    const confirmed = window.confirm('Sign out of Central Operations session?');
-    if (!confirmed) return;
+  const isNavActive = (href: string) =>
+    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
 
+  const pageTitle =
+    [...ALL_ITEMS]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((i) => isNavActive(i.href))?.label ?? 'Admin';
+
+  const initials = user.name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleSignOut = useCallback(async () => {
+    if (loggingOut) return;
     setLoggingOut(true);
+
     try {
-      const supabase = getSupabase();
-
-      // 1. Client-side sign out
-      await supabase.auth.signOut({ scope: 'global' }).catch(() => { });
-
-      // 2. Server-side cookie purge (handles HttpOnly and .vidhyasecurityforce.in domain cookies)
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }).catch(() => { });
-
-      // 3. Clear browser / desktop local storage
-      if (typeof window !== 'undefined') {
-        localStorage.clear();
-        sessionStorage.clear();
-
-        // 4. Force hard redirect to login
-        window.location.replace('/admin/login');
+      // 1. Revoke the session with Supabase (never block on it)
+      try {
+        await withTimeout(getSupabase().auth.signOut({ scope: 'global' }));
+      } catch {
+        /* continue even if the token is already invalid */
       }
-    } catch (err) {
-      console.error('Logout error:', err);
-      window.location.replace('/admin/login');
-    }
-  };
 
-  const renderNavContent = () => (
-    <div className="flex h-full flex-col justify-between bg-white border-r border-slate-200/90 text-slate-800 select-none overflow-hidden">
-      <div className="shrink-0 flex items-center gap-3 px-5 py-4 border-b border-slate-100">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-red-200 bg-red-50/50 p-1.5 shadow-2xs">
-          <img
-            src="/assets/img/logo/logo.png"
-            alt="VSF Logo"
-            className="h-full w-full object-contain"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src =
-                'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23b91c1c"><circle cx="12" cy="12" r="10"/></svg>';
-            }}
-          />
-        </div>
-        <div className="min-w-0">
-          <span className="block text-xs font-black tracking-tight uppercase text-slate-950 leading-tight">
-            Vidhya Security Force
-          </span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[9.5px] font-mono font-bold text-slate-500 uppercase tracking-wider">
-              HQ Operations Desk
-            </span>
-          </div>
+      // 2. Server purge: removes HttpOnly and shared-domain (.vidhyasecurityforce.in) cookies
+      try {
+        await withTimeout(
+          fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include',
+            cache: 'no-store',
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      } catch {
+        /* continue */
+      }
+
+      // 3. Sweep any JS-readable cookies on the host and the shared domain
+      const host = window.location.hostname;
+      const domainParts = ['', `; domain=${host}`];
+      if (host.endsWith(PROD_DOMAIN)) domainParts.push(`; domain=.${PROD_DOMAIN}`);
+      document.cookie.split(';').forEach((c) => {
+        const name = c.split('=')[0].trim();
+        if (!name) return;
+        domainParts.forEach((d) => {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${d}`;
+        });
+      });
+
+      // 4. Clear stored auth state (keep unrelated keys such as the remembered login ID)
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith('sb-') || k.includes('supabase'))
+          .forEach((k) => localStorage.removeItem(k));
+        sessionStorage.clear();
+      } catch {
+        /* storage unavailable */
+      }
+    } finally {
+      // 5. Always leave, with a unique URL so no cached page is reused
+      window.location.replace(`/admin/login?loggedout=${Date.now()}`);
+    }
+  }, [loggingOut]);
+
+  const navContent = (
+    <div className="flex h-full flex-col border-r border-slate-200 bg-white">
+      {/* Brand */}
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 px-5">
+        <Image
+          src="/assets/img/logo/logo.png"
+          alt="Vidhya Security Force logo"
+          width={32}
+          height={32}
+          className="h-8 w-8 object-contain"
+          priority
+        />
+        <div className="min-w-0 leading-tight">
+          <p className="truncate text-sm font-semibold text-slate-900">Vidhya Security Force</p>
+          <p className="text-xs text-slate-500">Operations desk</p>
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-3 space-y-5" aria-label="Admin Navigation">
+      {/* Navigation */}
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Admin navigation">
         {ADMIN_NAVIGATION.map((section) => (
-          <div key={section.title} className="space-y-1">
-            <span className="px-3 text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400 block">
-              {section.title}
-            </span>
-            <ul className="space-y-0.5 pt-0.5">
+          <div key={section.title}>
+            <p className="mb-1.5 px-3 text-xs font-medium text-slate-400">{section.title}</p>
+            <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const active = isNavActive(item.href);
                 const Icon = item.icon;
-
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      onClick={() => setMobileDrawerOpen(false)}
-                      className={`group relative flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${active
-                          ? 'bg-red-700 text-white shadow-xs'
-                          : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                        }`}
+                      aria-current={active ? 'page' : undefined}
+                      className={`flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700 ${
+                        active
+                          ? 'bg-red-50 font-semibold text-red-800'
+                          : 'font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="flex min-w-0 items-center gap-3">
                         <Icon
-                          size={15}
-                          className={`shrink-0 transition-colors ${active ? 'text-amber-300' : 'text-slate-400 group-hover:text-slate-600'
-                            }`}
+                          size={17}
+                          className={`shrink-0 ${active ? 'text-red-700' : 'text-slate-400'}`}
                         />
                         <span className="truncate">{item.label}</span>
-                      </div>
-
+                      </span>
                       {item.badge && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black uppercase tracking-wider ${active
-                              ? 'bg-white/20 text-white'
-                              : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}
-                        >
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                           {item.badge}
                         </span>
                       )}
@@ -189,62 +245,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         ))}
 
-        <div className="space-y-1 pt-2 border-t border-slate-100">
-          <span className="px-3 text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400 block">
-            Quick Portals
-          </span>
-          <a
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Globe size={14} className="text-slate-400 shrink-0" />
-              <span className="truncate text-xs">Public Website</span>
-            </div>
-            <ExternalLink size={12} className="text-slate-400 shrink-0" />
-          </a>
-
-          <a
-            href={fieldPortalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-amber-950 bg-amber-50/70 border border-amber-200/80 hover:bg-amber-100/70 transition-all cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Radio size={14} className="text-amber-700 shrink-0 animate-pulse" />
-              <span className="truncate text-xs">Field Patrol App</span>
-            </div>
-            <ExternalLink size={12} className="text-amber-700 shrink-0" />
-          </a>
+        <div>
+          <p className="mb-1.5 px-3 text-xs font-medium text-slate-400">Open</p>
+          <ul className="space-y-0.5">
+            <li>
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+              >
+                <span className="flex items-center gap-3">
+                  <Globe size={17} className="text-slate-400" />
+                  Public website
+                </span>
+                <ExternalLink size={13} className="text-slate-300" />
+              </a>
+            </li>
+            <li>
+              <a
+                href={fieldPortalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+              >
+                <span className="flex items-center gap-3">
+                  <Smartphone size={17} className="text-slate-400" />
+                  Field patrol app
+                </span>
+                <ExternalLink size={13} className="text-slate-300" />
+              </a>
+            </li>
+          </ul>
         </div>
       </nav>
 
-      <div className="shrink-0 p-3 border-t border-slate-200/80 bg-slate-50/80">
-        <div className="flex items-center justify-between p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-amber-300 text-[11px] font-black font-mono">
-              AD
-            </div>
-            <div className="min-w-0">
-              <span className="block text-xs font-black text-slate-900 truncate leading-tight">
-                Anil Dhariwal
-              </span>
-              <span className="block text-[9px] font-mono font-bold uppercase text-slate-400 tracking-tight mt-0.5">
-                Managing Director
-              </span>
-            </div>
+      {/* User + sign out */}
+      <div className="shrink-0 border-t border-slate-200 p-3">
+        <div className="flex items-center gap-3 rounded-md px-2 py-1.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+            {initials}
           </div>
-
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-sm font-semibold text-slate-900">{user.name}</p>
+            <p className="truncate text-xs text-slate-500">{user.role}</p>
+          </div>
           <button
             type="button"
+            onClick={() => setConfirmOpen(true)}
             disabled={loggingOut}
-            onClick={handleSignOut}
-            title="Sign Out of Session"
-            className="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg transition cursor-pointer disabled:opacity-50"
+            aria-label="Sign out"
+            title="Sign out"
+            className="rounded-md p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700 disabled:opacity-50"
           >
-            {loggingOut ? <Loader2 size={16} className="animate-spin text-red-700" /> : <LogOut size={16} />}
+            <LogOut size={17} />
           </button>
         </div>
       </div>
@@ -252,82 +306,81 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#FBFBF9] text-slate-900">
-      <aside className="hidden lg:block w-64 shrink-0 h-full">
-        {renderNavContent()}
-      </aside>
+    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
+      {/* Desktop sidebar */}
+      <aside className="hidden h-full w-64 shrink-0 lg:block">{navContent}</aside>
 
+      {/* Mobile drawer */}
       {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
           <div
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity"
+            className="absolute inset-0 bg-slate-900/40"
             onClick={() => setMobileDrawerOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] shadow-2xl animate-in slide-in-from-left duration-150">
-            {renderNavContent()}
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] shadow-xl">
+            <button
+              type="button"
+              onClick={() => setMobileDrawerOpen(false)}
+              aria-label="Close navigation"
+              className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
+            >
+              <X size={18} />
+            </button>
+            {navContent}
           </div>
         </div>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        <header className="h-14 shrink-0 bg-white border-b border-slate-200/90 px-4 sm:px-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+      {/* Main column */}
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileDrawerOpen(true)}
-              aria-label="Open navigation menu"
-              className="lg:hidden p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              aria-label="Open navigation"
+              className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100 lg:hidden"
             >
               <Menu size={20} />
             </button>
-            <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase text-slate-500 truncate">
-              <span>HQ Central Desk</span>
-              <ChevronRight size={13} className="text-slate-300 shrink-0" />
-              <span className="text-slate-900 truncate">
-                {pathname.replace('/admin/', '').replace('/admin', 'Command') || 'Dashboard'}
-              </span>
-            </div>
+            <h1 className="truncate text-base font-semibold text-slate-900">{pageTitle}</h1>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[10px] font-mono font-bold text-slate-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>PSARA MP COMPLIANT</span>
-            </div>
-
-            <div className="text-right hidden md:block">
-              <span className="block text-[11px] font-bold text-slate-900 leading-tight">
-                Indore Central HQ
-              </span>
-              <span className="block text-[9.5px] font-mono text-slate-400">
-                PSA/L/74/MP/2023/FEB/3/425
+          <div className="flex shrink-0 items-center gap-4">
+            <div className="hidden items-center gap-2 text-xs text-slate-500 md:flex">
+              <ShieldCheck size={15} className="text-emerald-600" />
+              <span>
+                PSARA licensed
+                <span className="hidden xl:inline"> · PSA/L/74/MP/2023/FEB/3/425</span>
               </span>
             </div>
 
-            {/* Render desktop window controls only after hydration */}
-            {mounted && typeof window !== 'undefined' && (window as any).desktopAPI && (
-              <div className="flex items-center gap-1 ml-2 border-l border-slate-200 pl-3">
+            {mounted && hasDesktopApi && (
+              <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
                 <button
                   type="button"
                   onClick={() => (window as any).desktopAPI.minimize()}
-                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-600 transition"
+                  className="flex h-7 w-7 items-center justify-center rounded text-slate-600 hover:bg-slate-100"
                   title="Minimize"
+                  aria-label="Minimize window"
                 >
                   &minus;
                 </button>
                 <button
                   type="button"
                   onClick={() => (window as any).desktopAPI.maximize()}
-                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-slate-600 transition text-xs"
+                  className="flex h-7 w-7 items-center justify-center rounded text-xs text-slate-600 hover:bg-slate-100"
                   title="Maximize"
+                  aria-label="Maximize window"
                 >
                   &#9633;
                 </button>
                 <button
                   type="button"
                   onClick={() => (window as any).desktopAPI.close()}
-                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-600 hover:text-white text-slate-600 transition text-xs"
-                  title="Close to Tray"
+                  className="flex h-7 w-7 items-center justify-center rounded text-xs text-slate-600 hover:bg-red-600 hover:text-white"
+                  title="Close to tray"
+                  aria-label="Close window to tray"
                 >
                   &#x2715;
                 </button>
@@ -336,10 +389,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+
+      {/* Sign-out confirmation */}
+      {confirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="signout-title"
+          aria-describedby="signout-desc"
+        >
+          <div
+            className="absolute inset-0 bg-slate-900/50"
+            onClick={() => !loggingOut && setConfirmOpen(false)}
+          />
+          <div className="relative w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+            <h2 id="signout-title" className="text-base font-semibold text-slate-900">
+              Sign out?
+            </h2>
+            <p id="signout-desc" className="mt-1.5 text-sm text-slate-600">
+              You will be signed out on this device and in the Field Patrol app.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                disabled={loggingOut}
+                autoFocus
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={loggingOut}
+                className="inline-flex items-center gap-2 rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-70"
+              >
+                {loggingOut && <Loader2 size={15} className="animate-spin" />}
+                {loggingOut ? 'Signing out' : 'Sign out'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
