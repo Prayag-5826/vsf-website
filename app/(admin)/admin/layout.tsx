@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   PhoneCall,
   Receipt,
@@ -21,8 +21,13 @@ import {
   Loader2,
   ShieldCheck,
   Smartphone,
+  Search,
+  Keyboard,
+  RefreshCw,
+  LifeBuoy,
 } from 'lucide-react';
 import { getSupabase } from '@/lib/supabaseBrowser';
+import { reportClientError } from '@/lib/reportError';
 
 interface NavItem {
   href: string;
@@ -70,10 +75,16 @@ const withTimeout = <T,>(p: Promise<T>, ms = 4000) =>
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [appVersion, setAppVersion] = useState('');
 
   // Values that depend on the browser are set after mount to avoid hydration mismatch
   const [mounted, setMounted] = useState(false);
@@ -89,6 +100,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         : 'http://localhost:5173'
     );
     setHasDesktopApi(Boolean((window as any).desktopAPI));
+    (window as any).desktopAPI?.getVersion?.().then((v: string) => v && setAppVersion(v)).catch(() => {});
 
     // Show the signed-in user when the session has a name; otherwise keep the default
     (async () => {
@@ -108,6 +120,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (!loggingOut) setConfirmOpen(false);
+      setPaletteOpen(false);
+      setHelpOpen(false);
       setMobileDrawerOpen(false);
     };
     window.addEventListener('keydown', onKey);
@@ -118,6 +132,145 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     setMobileDrawerOpen(false);
   }, [pathname]);
+
+  // Send unexpected browser errors to the app_errors table (a small private Sentry)
+  useEffect(() => {
+    const IGNORE = /ResizeObserver loop|^Script error\.?$/i;
+    const onError = (e: ErrorEvent) => {
+      if (IGNORE.test(e.message || '')) return;
+      reportClientError(e.error ?? e.message, { kind: 'window-error' });
+    };
+    const onRejection = (e: PromiseRejectionEvent) => {
+      reportClientError(e.reason, { kind: 'unhandled-rejection' });
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, []);
+
+  /* ───────── keyboard shortcuts and quick search ───────── */
+
+  const openPalette = useCallback(() => {
+    setHelpOpen(false);
+    setQuery('');
+    setActiveIdx(0);
+    setPaletteOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+
+      if (mod && !e.shiftKey && !e.altKey && key === 'k') {
+        e.preventDefault();
+        openPalette();
+      } else if (mod && !e.altKey && key === '/') {
+        e.preventDefault();
+        setPaletteOpen(false);
+        setHelpOpen(true);
+      } else if (mod && e.shiftKey && !e.altKey && key === 'l') {
+        e.preventDefault();
+        setConfirmOpen(true);
+      } else if (e.altKey && !mod && !e.shiftKey && /^Digit[1-8]$/.test(e.code)) {
+        const item = ALL_ITEMS[Number(e.code.slice(5)) - 1];
+        if (item) {
+          e.preventDefault();
+          router.push(item.href);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [router, openPalette]);
+
+  type PaletteEntry = { id: string; label: string; hint?: string; icon: React.ElementType; run: () => void };
+
+  const paletteEntries: PaletteEntry[] = [
+    ...ALL_ITEMS.map((item, i) => ({
+      id: item.href,
+      label: `Go to ${item.label}`,
+      hint: `Alt+${i + 1}`,
+      icon: item.icon,
+      run: () => router.push(item.href),
+    })),
+    { id: 'site', label: 'Open public website', icon: Globe, run: () => window.open('/', '_blank') },
+    { id: 'field', label: 'Open field patrol app', icon: Smartphone, run: () => window.open(fieldPortalUrl, '_blank') },
+    { id: 'help', label: 'Keyboard shortcuts', hint: 'Ctrl+/', icon: Keyboard, run: () => setHelpOpen(true) },
+    ...(hasDesktopApi
+      ? [
+          {
+            id: 'update',
+            label: 'Check for app updates',
+            icon: RefreshCw,
+            run: () => (window as any).desktopAPI?.checkForUpdates?.(),
+          },
+          {
+            id: 'report',
+            label: 'Report a problem',
+            icon: LifeBuoy,
+            run: () => (window as any).desktopAPI?.reportProblem?.(),
+          },
+        ]
+      : []),
+    { id: 'signout', label: 'Sign out', hint: 'Ctrl+Shift+L', icon: LogOut, run: () => setConfirmOpen(true) },
+  ];
+
+  const filteredEntries = paletteEntries.filter((e) =>
+    e.label.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  const runEntry = (entry?: PaletteEntry) => {
+    if (!entry) return;
+    setPaletteOpen(false);
+    entry.run();
+  };
+
+  const onPaletteKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx((i) => (filteredEntries.length ? (i + 1) % filteredEntries.length : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx((i) => (filteredEntries.length ? (i - 1 + filteredEntries.length) % filteredEntries.length : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      runEntry(filteredEntries[activeIdx]);
+    }
+  };
+
+  const shortcutGroups: { title: string; rows: [string, string][] }[] = [
+    {
+      title: 'Anywhere in the admin panel',
+      rows: [
+        ['Ctrl + K', 'Quick search and commands'],
+        ['Ctrl + /', 'Show this list'],
+        ['Alt + 1 to 8', 'Go to Dashboard, Attendance ... Settings'],
+        ['Ctrl + Shift + L', 'Sign out'],
+        ['Esc', 'Close a window'],
+      ],
+    },
+    ...(hasDesktopApi
+      ? [
+          {
+            title: 'Desktop app',
+            rows: [
+              ['Ctrl + Alt + E', 'Bring the app to the front from any program'],
+              ['F5  or  Ctrl + R', 'Reload'],
+              ['Ctrl + Shift + R', 'Reload and clear cache'],
+              ['Alt + Left / Right', 'Back / forward'],
+              ['Ctrl + Plus / Minus / 0', 'Zoom in / out / reset'],
+              ['F11', 'Full screen'],
+              ['Ctrl + W', 'Hide to the system tray'],
+              ['Ctrl + M', 'Minimize'],
+            ] as [string, string][],
+          },
+        ]
+      : []),
+  ];
 
   const isNavActive = (href: string) =>
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
@@ -226,6 +379,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <Link
                       href={item.href}
                       aria-current={active ? 'page' : undefined}
+                      title={`${item.label} (Alt+${ALL_ITEMS.findIndex((i) => i.href === item.href) + 1})`}
                       className={`flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700 ${
                         active
                           ? 'bg-red-50 font-semibold text-red-800'
@@ -358,6 +512,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="vsf-titlebar-nodrag flex shrink-0 items-center gap-4">
+            <button
+              type="button"
+              onClick={openPalette}
+              className="hidden items-center gap-2 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 md:flex"
+              aria-label="Open quick search"
+            >
+              <Search size={14} />
+              <span>Search</span>
+              <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">Ctrl K</kbd>
+            </button>
+
             <div className="hidden items-center gap-2 text-xs text-slate-500 md:flex">
               <ShieldCheck size={15} className="text-emerald-600" />
               <span>
@@ -402,6 +567,104 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+
+      {/* Quick search */}
+      {paletteOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[14vh]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Quick search"
+        >
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setPaletteOpen(false)} />
+          <div className="relative w-full max-w-lg overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-center gap-3 border-b border-slate-200 px-4">
+              <Search size={16} className="shrink-0 text-slate-400" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActiveIdx(0);
+                }}
+                onKeyDown={onPaletteKey}
+                placeholder="Go to a page or run a command"
+                className="h-12 w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+              />
+              <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500">Esc</kbd>
+            </div>
+            <ul className="max-h-80 overflow-y-auto p-2" role="listbox">
+              {filteredEntries.length === 0 && (
+                <li className="px-3 py-6 text-center text-sm text-slate-500">Nothing matches &ldquo;{query}&rdquo;</li>
+              )}
+              {filteredEntries.map((entry, i) => {
+                const Icon = entry.icon;
+                return (
+                  <li key={entry.id} role="option" aria-selected={i === activeIdx}>
+                    <button
+                      type="button"
+                      onClick={() => runEntry(entry)}
+                      onMouseMove={() => setActiveIdx(i)}
+                      className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm ${
+                        i === activeIdx ? 'bg-red-50 text-red-800' : 'text-slate-700'
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Icon size={16} className={i === activeIdx ? 'text-red-700' : 'text-slate-500'} />
+                        <span className="truncate">{entry.label}</span>
+                      </span>
+                      {entry.hint && <span className="shrink-0 text-xs text-slate-400">{entry.hint}</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard shortcuts */}
+      {helpOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Keyboard shortcuts"
+        >
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setHelpOpen(false)} />
+          <div className="relative max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Keyboard shortcuts</h2>
+              <button
+                type="button"
+                onClick={() => setHelpOpen(false)}
+                aria-label="Close"
+                className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="mt-4 space-y-5">
+              {shortcutGroups.map((group) => (
+                <div key={group.title}>
+                  <p className="mb-1.5 text-xs font-semibold text-slate-500">{group.title}</p>
+                  <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
+                    {group.rows.map(([keys, label]) => (
+                      <li key={keys} className="flex items-center justify-between gap-4 px-3 py-2 text-sm">
+                        <span className="text-slate-700">{label}</span>
+                        <kbd className="shrink-0 rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600">
+                          {keys}
+                        </kbd>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            {appVersion && <p className="mt-4 text-center text-xs text-slate-400">Desktop app version {appVersion}</p>}
+          </div>
+        </div>
+      )}
 
       {/* Sign-out confirmation */}
       {confirmOpen && (
